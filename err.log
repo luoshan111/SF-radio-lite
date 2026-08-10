@@ -1,0 +1,13 @@
+2026-08-10 17:26:27,811 [INFO] bizhi: BIZHI starting...
+2026-08-10 17:26:27,853 [INFO] core.wallpaper: Wallpaper engine started
+2026-08-10 17:26:27,928 [INFO] widgets.manager: Widget 'todo' created at (80,120) size 380x520
+2026-08-10 17:26:27,928 [INFO] core.taskbar_lyrics: Taskbar rect: (0,1392)-(2560,1440)  h=48
+2026-08-10 17:26:27,929 [INFO] widgets.manager: Widget 'music' created at (1480,100) size 360x580
+2026-08-10 17:26:27,930 [INFO] core.tray: System tray started
+2026-08-10 17:26:27,931 [INFO] bizhi: All components ready. Entering main loop...
+2026-08-10 17:26:27,931 [INFO] widgets.manager: Starting webview event loop
+2026-08-10 17:26:27,942 [INFO] core.taskbar_lyrics: Lyrics HWND=723586 visible=1 exstyle=0x800A4
+2026-08-10 17:37:21,661 [INFO] bizhi: Shutting down BIZHI...
+2026-08-10 17:37:21,997 [INFO] widgets.manager: All widgets destroyed for quit
+2026-08-10 17:37:22,000 [INFO] bizhi: Shutting down BIZHI...
+2026-08-10 17:37:23,073 [INFO] widgets.manager: All widgets destroyed for quit
