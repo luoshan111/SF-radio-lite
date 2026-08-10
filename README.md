@@ -96,6 +96,12 @@ ly = bar.top + 2             # 垂直偏移：比任务栏顶部低 2px
 
 调整后重启 `python main.py` 生效。
 
+## 🚀 快速启动
+
+**桌面快捷方式：** 双击桌面上的 `BIZHI` 图标即可启动
+
+**命令行：** 直接运行 `D:\code\BIZHI\BIZHI.bat`
+
 ## 📝 注意事项
 
 - 需要 Windows 10/11 系统

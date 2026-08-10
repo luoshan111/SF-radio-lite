@@ -2,6 +2,7 @@
 
 import pystray
 import time
+from pathlib import Path
 from PIL import Image, ImageDraw
 import logging
 import threading
@@ -10,6 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 def _create_icon_image(size=64):
+    """Load icon from file, or create a simple one as fallback."""
+    ico_path = Path(__file__).resolve().parent.parent / "assets" / "icons" / "bizhi.ico"
+    if ico_path.exists():
+        try:
+            return Image.open(ico_path).resize((size, size), Image.Resampling.LANCZOS)
+        except Exception:
+            pass
     """Create a simple icon for the system tray."""
     img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
