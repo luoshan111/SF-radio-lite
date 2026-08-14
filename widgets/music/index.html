@@ -3,311 +3,671 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QQ音乐歌词</title>
+<title>QQ 音乐歌词</title>
 <style>
-  @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  * { box-sizing: border-box; }
+
   :root {
-    --glass-bg: rgba(20, 20, 40, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --glass-blur: 20px;
-    --accent: #a78bfa;
-    --accent-glow: rgba(167, 139, 250, 0.4);
-    --accent-dim: rgba(167, 139, 250, 0.15);
-    --text: #e2e8f0;
-    --text-dim: #94a3b8;
-    --text-muted: #64748b;
-    --radius: 14px;
-    --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color-scheme: dark;
+    --surface: rgba(20, 23, 29, 0.94);
+    --surface-raised: rgba(255, 255, 255, 0.065);
+    --surface-hover: rgba(255, 255, 255, 0.1);
+    --border: rgba(255, 255, 255, 0.1);
+    --border-strong: rgba(255, 255, 255, 0.16);
+    --text: #f4f5f7;
+    --text-secondary: #b8bdc8;
+    --text-muted: #969eaa;
+    --accent: #f0b35a;
+    --accent-soft: rgba(240, 179, 90, 0.14);
+    --success: #66c79a;
+    --danger: #ff887b;
+    --radius: 8px;
+    --ease: 180ms cubic-bezier(0.16, 1, 0.3, 1);
   }
-  html, body {
+
+  html,
+  body {
+    width: 100%;
     height: 100%;
-    font-family: "Inter", "Microsoft YaHei", system-ui, sans-serif;
+    margin: 0;
+    overflow: hidden;
     background: transparent;
     color: var(--text);
-    overflow: hidden;
+    font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+    font-size: 14px;
     user-select: none;
   }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  button {
+    color: inherit;
+  }
+
   .widget {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    width: 100%;
     height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: var(--glass-bg);
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
-    border: 1px solid var(--glass-border);
-    border-radius: var(--radius);
     overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background:
+      linear-gradient(180deg, rgba(36, 40, 49, 0.92), rgba(18, 21, 27, 0.97)),
+      var(--surface);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 16px 42px rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(22px) saturate(135%);
+    -webkit-backdrop-filter: blur(22px) saturate(135%);
   }
-  .win-btn {
-    -webkit-app-region: no-drag;
-    background: rgba(255,255,255,0.06);
-    border: none;
-    border-radius: 6px;
-    width: 28px; height: 28px;
-    color: var(--text-dim);
-    font-size: 14px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all var(--transition);
-    flex-shrink: 0;
-    line-height: 1;
-    margin-left: 6px;
-  }
-  .win-btn:hover { background: rgba(255,255,255,0.12); color: var(--text); }
 
-  .header {
+  .titlebar {
     -webkit-app-region: drag;
-    padding: 16px 18px 8px;
     display: flex;
     align-items: center;
-    gap: 10px;
-    flex-shrink: 0;
+    min-height: 50px;
+    padding: 9px 10px 8px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.055);
   }
-  .header h1 { font-size: 15px; font-weight: 600; letter-spacing: 0.5px; }
-  .header .status-dot {
-    width: 8px; height: 8px;
-    border-radius: 50%;
-    background: #64748b;
-    margin-left: auto;
-    flex-shrink: 0;
-    transition: background 0.3s;
-  }
-  .header .status-dot.playing { background: #34d399; animation: pulse 1.5s infinite; }
-  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
 
-  .song-info {
-    padding: 4px 18px 8px;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-  }
-  .song-info.hidden { display: none; }
-  .song-info .title { font-size: 15px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .song-info .artist { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
-
-  .search-bar {
-    padding: 0 14px 8px;
+  .brand {
     display: flex;
-    gap: 6px;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
+    align-items: center;
+    min-width: 0;
+    gap: 9px;
   }
-  .search-bar input {
-    flex: 1;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    padding: 8px 12px;
-    color: var(--text);
+
+  .brand-mark {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    border: 1px solid rgba(240, 179, 90, 0.28);
+    border-radius: 7px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  .brand-copy {
+    min-width: 0;
+  }
+
+  .brand h1 {
+    margin: 0;
     font-size: 13px;
-    outline: none;
-    transition: border var(--transition);
+    font-weight: 650;
+    letter-spacing: 0;
+    line-height: 1.2;
   }
-  .search-bar input:focus { border-color: var(--accent); }
-  .search-bar input::placeholder { color: var(--text-muted); }
-  .search-bar button {
-    background: var(--accent);
-    border: none;
-    border-radius: 10px;
-    padding: 8px 12px;
-    color: #fff;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: opacity var(--transition);
+
+  .playback-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 10px;
+    line-height: 1;
     white-space: nowrap;
   }
-  .search-bar button:hover { opacity: 0.85; }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    flex: 0 0 6px;
+    border-radius: 50%;
+    background: #69717e;
+    transition: background-color var(--ease), opacity var(--ease);
+  }
+
+  .status-dot.playing {
+    background: var(--success);
+  }
+
+  .status-dot.error {
+    background: var(--danger);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .status-dot.playing {
+      animation: status-pulse 1.8s ease-in-out infinite;
+    }
+  }
+
+  @keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.42; }
+  }
+
+  .window-actions {
+    -webkit-app-region: no-drag;
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+    padding-left: 12px;
+  }
+
+  .icon-button {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 17px;
+    line-height: 1;
+    transition: background-color var(--ease), color var(--ease), transform var(--ease);
+  }
+
+  .icon-button:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  .icon-button:active {
+    transform: scale(0.94);
+  }
+
+  .top-region {
+    position: relative;
+    z-index: 3;
+    padding: 13px 14px 11px;
+  }
+
+  .song-info {
+    -webkit-app-region: no-drag;
+    min-width: 0;
+    margin-bottom: 11px;
+  }
+
+  .song-info.hidden {
+    display: none;
+  }
+
+  .song-title {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .song-artist {
+    overflow: hidden;
+    margin-top: 3px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-wrap {
+    -webkit-app-region: no-drag;
+    position: relative;
+  }
+
+  .search-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px;
+  }
+
+  .search-bar input {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    outline: none;
+    background: rgba(255, 255, 255, 0.045);
+    color: var(--text);
+    font-size: 12px;
+    transition: border-color var(--ease), background-color var(--ease), box-shadow var(--ease);
+  }
+
+  .search-bar input::placeholder {
+    color: var(--text-muted);
+    opacity: 1;
+  }
+
+  .search-bar input:hover {
+    border-color: var(--border-strong);
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .search-bar input:focus {
+    border-color: rgba(240, 179, 90, 0.72);
+    background: rgba(255, 255, 255, 0.075);
+    box-shadow: 0 0 0 3px rgba(240, 179, 90, 0.1);
+  }
+
+  .search-button {
+    min-width: 58px;
+    height: 36px;
+    padding: 0 13px;
+    border: 1px solid rgba(240, 179, 90, 0.7);
+    border-radius: 7px;
+    background: var(--accent);
+    color: #262016;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    transition: filter var(--ease), transform var(--ease), opacity var(--ease);
+  }
+
+  .search-button:hover {
+    filter: brightness(1.07);
+  }
+
+  .search-button:active {
+    transform: translateY(1px);
+  }
+
+  .search-button:disabled {
+    cursor: wait;
+    opacity: 0.62;
+  }
 
   .search-results {
-    padding: 0 12px 6px;
-    max-height: 160px;
+    position: absolute;
+    top: calc(100% + 7px);
+    right: 0;
+    left: 0;
+    max-height: 180px;
     overflow-y: auto;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
+    padding: 5px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: rgba(29, 32, 39, 0.985);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.38);
   }
-  .search-results.hidden { display: none; }
-  .search-results::-webkit-scrollbar { width: 3px; }
-  .search-results::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+
+  .search-results.hidden {
+    display: none;
+  }
+
   .result-item {
-    padding: 8px 12px;
-    border-radius: 10px;
+    display: block;
+    width: 100%;
+    padding: 9px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
     cursor: pointer;
-    transition: background var(--transition);
-    margin-bottom: 3px;
+    transition: background-color var(--ease);
   }
-  .result-item:hover { background: rgba(255,255,255,0.06); }
-  .result-item .name { font-size: 13px; font-weight: 500; }
-  .result-item .meta { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+
+  .result-item:hover,
+  .result-item:focus-visible {
+    outline: none;
+    background: var(--surface-hover);
+  }
+
+  .result-item + .result-item {
+    margin-top: 2px;
+  }
+
+  .result-name {
+    overflow: hidden;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .result-meta,
+  .search-message {
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.45;
+  }
+
+  .result-meta {
+    overflow: hidden;
+    margin-top: 2px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-message {
+    padding: 13px 11px;
+    text-align: center;
+  }
+
+  .search-message.error {
+    color: var(--danger);
+  }
 
   .lyrics-area {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 16px 20px;
     -webkit-app-region: no-drag;
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 18px 18px;
+    overscroll-behavior: contain;
     scroll-behavior: smooth;
+    scrollbar-gutter: stable;
   }
-  .lyrics-area::-webkit-scrollbar { width: 4px; }
-  .lyrics-area::-webkit-scrollbar-track { background: transparent; }
-  .lyrics-area::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+  .lyrics-area::-webkit-scrollbar,
+  .search-results::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .lyrics-area::-webkit-scrollbar-track,
+  .search-results::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .lyrics-area::-webkit-scrollbar-thumb,
+  .search-results::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  .lyric-pair {
+    padding: 8px 0;
+    text-align: center;
+    transition: opacity 240ms ease, transform 240ms ease;
+  }
+
   .lyric-line {
-    padding: 6px 0;
-    font-size: 14px;
     color: var(--text-muted);
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    text-align: center;
-    line-height: 1.6;
-    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+    transition: color 240ms ease, font-weight 240ms ease;
   }
-  .lyric-line:hover { color: var(--text-dim); }
-  .lyric-line.active {
-    color: var(--accent);
-    font-size: 17px;
-    font-weight: 600;
-    text-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(167,139,250,0.15);
-    transform: scale(1.03);
-  }
-  .lyric-line.past { color: var(--text-dim); opacity: 0.45; }
+
   .lyric-trans {
-    font-size: 12px;
-    color: rgba(148, 163, 184, 0.6);
-    text-align: center;
-    line-height: 1.4;
-    padding: 0 0 4px 0;
-    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 3px;
+    color: rgba(184, 189, 200, 0.55);
+    font-size: 11px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    transition: color 240ms ease;
   }
-  .lyric-line.active + .lyric-trans,
-  .lyric-line.active ~ .lyric-trans:first-of-type {
-    color: rgba(167, 139, 250, 0.6);
+
+  .lyric-pair.past {
+    opacity: 0.42;
   }
-  .lyrics-spacer-top { height: 35%; }
-  .lyrics-spacer-bottom { height: 35%; }
+
+  .lyric-pair.active {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+
+  .lyric-pair.active .lyric-line {
+    color: var(--accent);
+    font-weight: 750;
+  }
+
+  .lyric-pair.active .lyric-trans {
+    color: rgba(240, 179, 90, 0.68);
+  }
+
+  .lyrics-spacer-top,
+  .lyrics-spacer-bottom {
+    height: 36%;
+    min-height: 92px;
+  }
 
   .empty-state {
-    flex: 1;
     display: flex;
+    min-height: 100%;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    color: var(--text-muted);
-    gap: 10px;
-    padding: 40px;
+    padding: 22px 24px 36px;
+    text-align: center;
   }
-  .empty-state .icon { font-size: 44px; opacity: 0.35; }
-  .empty-state p { font-size: 13px; text-align: center; line-height: 1.5; }
 
-  .controls {
-    padding: 6px 14px 12px;
-    display: flex;
+  .empty-mark {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(240, 179, 90, 0.22);
+    border-radius: 50%;
+    background: rgba(240, 179, 90, 0.08);
+    color: var(--accent);
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 25px;
+    line-height: 1;
+  }
+
+  .empty-title {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 650;
+  }
+
+  .empty-copy {
+    max-width: 24ch;
+    margin: 7px 0 0;
+    color: var(--text-muted);
+    font-size: 11px;
+    line-height: 1.65;
+  }
+
+  .footer {
+    -webkit-app-region: no-drag;
+    position: relative;
+    z-index: 2;
+    padding: 10px 14px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.065);
+    background: rgba(12, 15, 20, 0.42);
+  }
+
+  .progress-row {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
     align-items: center;
     gap: 8px;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-  }
-  .controls .time-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    min-width: 38px;
-    text-align: center;
-    font-variant-numeric: tabular-nums;
-  }
-  .controls .progress-bar {
-    flex: 1;
-    height: 3px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 3px;
-    position: relative;
-    overflow: hidden;
-  }
-  .controls .progress-bar .fill {
-    height: 100%;
-    background: var(--accent);
-    border-radius: 3px;
-    width: 0%;
-    transition: width 0.3s linear;
   }
 
-  .offset-bar {
-    padding: 0 14px 10px;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    -webkit-app-region: no-drag;
-  }
-  .offset-bar .label { font-size: 11px; color: var(--text-muted); }
-  .offset-bar button {
-    background: rgba(255,255,255,0.06);
-    border: 1px solid var(--glass-border);
-    border-radius: 8px;
-    padding: 4px 10px;
-    color: var(--text-dim);
-    font-size: 12px;
-    cursor: pointer;
-    transition: all var(--transition);
-  }
-  .offset-bar button:hover { background: rgba(255,255,255,0.12); color: var(--text); }
-  .offset-bar .offset-value {
-    font-size: 12px;
-    color: var(--accent);
-    min-width: 50px;
-    text-align: center;
+  .time-label {
+    color: var(--text-muted);
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .time-label:last-child {
+    text-align: right;
+  }
+
+  .progress-bar {
+    position: relative;
+    height: 3px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .progress-fill {
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left center;
+    transition: transform 260ms linear;
+  }
+
+  .offset-row {
+    display: grid;
+    grid-template-columns: minmax(54px, 1fr) repeat(2, 36px) 48px repeat(2, 36px);
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+  }
+
+  .offset-label {
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .step-button {
+    height: 30px;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 9px;
+    line-height: 1;
+    transition: background-color var(--ease), border-color var(--ease), color var(--ease), transform var(--ease);
+  }
+
+  .step-button:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  .step-button:active {
+    transform: scale(0.95);
+  }
+
+  .offset-value {
+    color: var(--accent);
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  button:focus-visible,
+  input:focus-visible {
+    outline: 2px solid rgba(240, 179, 90, 0.9);
+    outline-offset: 2px;
+  }
+
+  @media (max-height: 520px) {
+    .titlebar { min-height: 44px; }
+    .top-region { padding-top: 9px; padding-bottom: 9px; }
+    .song-info { margin-bottom: 8px; }
+    .lyrics-spacer-top,
+    .lyrics-spacer-bottom { min-height: 64px; }
+    .footer { padding-top: 8px; padding-bottom: 9px; }
+    .offset-row { margin-top: 8px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      scroll-behavior: auto !important;
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .widget {
+      background: #1d2128;
+      backdrop-filter: none;
+      -webkit-backdrop-filter: none;
+    }
   }
 </style>
 </head>
 <body>
-<div class="widget">
-  <div class="header">
-    <h1>&#127925; 歌词</h1>
-    <div class="status-dot" id="statusDot" title="播放状态"></div>
-    <button class="win-btn" onclick="minimizeWin()" title="最小化">–</button>
-  </div>
-
-  <div class="song-info hidden" id="songInfo">
-    <div class="title" id="songTitle"></div>
-    <div class="artist" id="songArtist"></div>
-  </div>
-
-  <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="搜索歌曲..." />
-    <button onclick="doSearch()">搜索</button>
-  </div>
-
-  <div class="search-results hidden" id="searchResults"></div>
-
-  <div class="lyrics-area" id="lyricsArea">
-    <div class="empty-state" id="emptyState">
-      <div class="icon">&#127926;</div>
-      <p>正在等待QQ音乐播放...</p>
-      <p style="font-size:11px;color:#64748b">播放后歌词将自动同步显示</p>
+<main class="widget">
+  <header class="titlebar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">&#9835;</span>
+      <div class="brand-copy">
+        <h1>QQ 音乐歌词</h1>
+        <div class="playback-status" aria-live="polite">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusLabel">等待播放</span>
+        </div>
+      </div>
     </div>
-  </div>
+    <div class="window-actions">
+      <button class="icon-button" type="button" onclick="minimizeWin()" title="最小化" aria-label="最小化">&#8722;</button>
+    </div>
+  </header>
 
-  <div class="offset-bar" id="offsetBar">
-    <span class="label">延迟调整</span>
-    <button onclick="adjustOffset(-500)">-0.5s</button>
-    <button onclick="adjustOffset(-100)">-0.1s</button>
-    <span class="offset-value" id="offsetValue">0.0s</span>
-    <button onclick="adjustOffset(100)">+0.1s</button>
-    <button onclick="adjustOffset(500)">+0.5s</button>
-  </div>
+  <section class="top-region">
+    <div class="song-info hidden" id="songInfo">
+      <div class="song-title" id="songTitle"></div>
+      <div class="song-artist" id="songArtist"></div>
+    </div>
 
-  <div class="controls" id="controls">
-    <span class="time-label" id="posLabel">0:00</span>
-    <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
-    <span class="time-label" id="durLabel">0:00</span>
-  </div>
-</div>
+    <div class="search-wrap">
+      <div class="search-bar">
+        <input type="search" id="searchInput" placeholder="搜索歌曲或歌手" autocomplete="off" aria-label="搜索歌曲或歌手">
+        <button class="search-button" id="searchButton" type="button" onclick="doSearch()">搜索</button>
+      </div>
+      <div class="search-results hidden" id="searchResults" role="listbox"></div>
+    </div>
+  </section>
+
+  <section class="lyrics-area" id="lyricsArea" aria-live="polite">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-mark" aria-hidden="true">&#9835;</div>
+      <p class="empty-title">等待 QQ 音乐播放</p>
+      <p class="empty-copy">开始播放后，歌词和翻译会自动同步显示。</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="progress-row" id="controls" aria-label="播放进度">
+      <span class="time-label" id="posLabel">0:00</span>
+      <div class="progress-bar" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="time-label" id="durLabel">0:00</span>
+    </div>
+
+    <div class="offset-row" id="offsetBar">
+      <span class="offset-label">歌词偏移</span>
+      <button class="step-button" type="button" onclick="adjustOffset(-500)" aria-label="歌词提前 0.5 秒">-0.5</button>
+      <button class="step-button" type="button" onclick="adjustOffset(-100)" aria-label="歌词提前 0.1 秒">-0.1</button>
+      <span class="offset-value" id="offsetValue">0.0s</span>
+      <button class="step-button" type="button" onclick="adjustOffset(100)" aria-label="歌词延后 0.1 秒">+0.1</button>
+      <button class="step-button" type="button" onclick="adjustOffset(500)" aria-label="歌词延后 0.5 秒">+0.5</button>
+    </div>
+  </footer>
+</main>
 
 <script>
   let lyrics = [];
   let currentIndex = -1;
-  let userOffset = 0;
+  let userOffset = null;
   let lrcOffset = 0;
-  let lastTitle = "";
   let syncTimer = null;
 
   function waitForApi() {
@@ -330,49 +690,57 @@
     tick();
   }
 
+  function setPlaybackState(state) {
+    const dot = document.getElementById("statusDot");
+    const label = document.getElementById("statusLabel");
+    dot.classList.remove("playing", "error");
+
+    if (state === "playing") {
+      dot.classList.add("playing");
+      label.textContent = "播放中";
+    } else if (state === "paused") {
+      label.textContent = "已暂停";
+    } else if (state === "error") {
+      dot.classList.add("error");
+      label.textContent = "等待连接";
+    } else {
+      label.textContent = "等待播放";
+    }
+  }
+
   async function tick() {
     try {
       const data = await window.pywebview.api.auto_sync();
       if (!data || data.error) {
+        setPlaybackState("idle");
         scheduleNext(2000);
         return;
       }
 
-      // Update playback state indicator
-      const dot = document.getElementById("statusDot");
-      if (data.is_playing) {
-        dot.classList.add("playing");
-      } else {
-        dot.classList.remove("playing");
+      setPlaybackState(data.is_playing ? "playing" : (lyrics.length ? "paused" : "idle"));
+
+      if (userOffset === null && typeof data.user_offset === "number") {
+        userOffset = data.user_offset;
+        updateOffsetLabel();
       }
 
-      // Song changed -> reload lyrics
       if (data.song_changed && data.lyrics && data.lyrics.length) {
         lyrics = data.lyrics;
         lrcOffset = data.lrc_offset || 0;
         currentIndex = -1;
-        lastTitle = data.title || "";
-
-        // Show song info
-        const info = document.getElementById("songInfo");
-        info.classList.remove("hidden");
-        document.getElementById("songTitle").textContent = data.title || "";
-        document.getElementById("songArtist").textContent = data.artist || "";
-
+        showSongInfo(data.title, data.artist);
         renderLyrics();
       }
 
-      // Sync lyrics position
       if (lyrics.length && typeof data.position_ms === "number") {
-        const effectiveMs = data.position_ms - lrcOffset - userOffset;
+        const effectiveMs = data.position_ms - lrcOffset - (userOffset || 0);
         updateHighlight(effectiveMs);
         updateProgress(data.position_ms, data.duration_ms);
       }
 
-      // Schedule next poll
       scheduleNext(data.is_playing ? 200 : 1000);
-
-    } catch (e) {
+    } catch (error) {
+      setPlaybackState("error");
       scheduleNext(2000);
     }
   }
@@ -382,16 +750,26 @@
     syncTimer = setTimeout(tick, ms);
   }
 
+  function showSongInfo(title, artist) {
+    const info = document.getElementById("songInfo");
+    info.classList.remove("hidden");
+    document.getElementById("songTitle").textContent = title || "未知歌曲";
+    document.getElementById("songArtist").textContent = artist || "未知歌手";
+  }
+
   function renderLyrics() {
     const area = document.getElementById("lyricsArea");
-    document.getElementById("emptyState").style.display = "none";
     let html = '<div class="lyrics-spacer-top"></div>';
+
     for (let i = 0; i < lyrics.length; i++) {
+      html += '<div class="lyric-pair" id="pair-' + i + '">';
       html += '<div class="lyric-line" id="line-' + i + '">' + esc(lyrics[i].text) + '</div>';
       if (lyrics[i].trans) {
         html += '<div class="lyric-trans" id="trans-' + i + '">' + esc(lyrics[i].trans) + '</div>';
       }
+      html += '</div>';
     }
+
     html += '<div class="lyrics-spacer-bottom"></div>';
     area.innerHTML = html;
   }
@@ -399,124 +777,168 @@
   function updateHighlight(positionMs) {
     let idx = -1;
     for (let i = lyrics.length - 1; i >= 0; i--) {
-      if (positionMs >= lyrics[i].time_ms) { idx = i; break; }
+      if (positionMs >= lyrics[i].time_ms) {
+        idx = i;
+        break;
+      }
     }
-    if (idx === currentIndex) return;
 
-    // Remove old active
-    if (currentIndex >= 0) {
-      const old = document.getElementById("line-" + currentIndex);
-      if (old) { old.classList.remove("active"); old.classList.add("past"); }
-    }
+    if (idx === currentIndex) return;
     currentIndex = idx;
 
+    for (let i = 0; i < lyrics.length; i++) {
+      const pair = document.getElementById("pair-" + i);
+      if (!pair) continue;
+      pair.classList.toggle("active", i === currentIndex);
+      pair.classList.toggle("past", i < currentIndex);
+    }
+
     if (currentIndex >= 0) {
-      const el = document.getElementById("line-" + currentIndex);
-      if (el) {
-        el.classList.add("active");
-        el.classList.remove("past");
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-      for (let i = 0; i < currentIndex; i++) {
-        const prev = document.getElementById("line-" + i);
-        if (prev) prev.classList.add("past");
-      }
-      // Lines after current should not be past
-      for (let i = currentIndex + 1; i < lyrics.length; i++) {
-        const nxt = document.getElementById("line-" + i);
-        if (nxt) nxt.classList.remove("past");
-        const nxtT = document.getElementById("trans-" + i);
-        if (nxtT) nxtT.classList.remove("past");
-      }
-      // Mark current trans as active style
-      const curTrans = document.getElementById("trans-" + currentIndex);
-      if (curTrans) curTrans.style.color = "rgba(167, 139, 250, 0.6)";
-      // Reset previous trans
-      if (currentIndex > 0) {
-        const prevTrans = document.getElementById("trans-" + (currentIndex - 1));
-        if (prevTrans) prevTrans.style.color = "";
+      const activePair = document.getElementById("pair-" + currentIndex);
+      if (activePair) {
+        activePair.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   }
 
   function updateProgress(posMs, durMs) {
     if (!durMs || durMs <= 0) return;
-    const pct = Math.min(100, (posMs / durMs) * 100);
-    document.getElementById("progressFill").style.width = pct + "%";
+    const pct = Math.max(0, Math.min(100, (posMs / durMs) * 100));
+    document.getElementById("progressFill").style.transform = "scaleX(" + (pct / 100) + ")";
     document.getElementById("posLabel").textContent = msToTime(posMs);
     document.getElementById("durLabel").textContent = msToTime(durMs);
   }
 
+  function updateOffsetLabel() {
+    const safeOffset = Number.isFinite(userOffset) ? userOffset : 0;
+    document.getElementById("offsetValue").textContent = (safeOffset / 1000).toFixed(1) + "s";
+  }
+
   function adjustOffset(delta) {
+    if (!Number.isFinite(userOffset)) userOffset = 0;
     userOffset += delta;
-    document.getElementById("offsetValue").textContent = (userOffset / 1000).toFixed(1) + "s";
-    // Notify backend
+    updateOffsetLabel();
+
     if (window.pywebview && window.pywebview.api) {
       window.pywebview.api.set_user_offset(userOffset);
     }
-    // Force re-evaluate highlight
+
     currentIndex = -1;
   }
 
-  // Manual search
+  function setSearchLoading(loading) {
+    const button = document.getElementById("searchButton");
+    button.disabled = loading;
+    button.textContent = loading ? "搜索中" : "搜索";
+  }
+
+  function showSearchMessage(message, isError = false) {
+    const el = document.getElementById("searchResults");
+    el.classList.remove("hidden");
+    el.innerHTML = '<div class="search-message' + (isError ? ' error' : '') + '">' + esc(message) + '</div>';
+  }
+
   async function doSearch() {
-    const kw = document.getElementById("searchInput").value.trim();
-    if (!kw) return;
-    await waitForApi();
-    const results = await window.pywebview.api.search(kw);
-    if (results.error) return alert(results.error);
-    showResults(results);
+    const input = document.getElementById("searchInput");
+    const keyword = input.value.trim();
+    if (!keyword) {
+      input.focus();
+      return;
+    }
+
+    setSearchLoading(true);
+    showSearchMessage("正在查找歌曲...");
+
+    try {
+      await waitForApi();
+      const results = await window.pywebview.api.search(keyword);
+      if (results && results.error) {
+        showSearchMessage(results.error, true);
+      } else {
+        showResults(Array.isArray(results) ? results : []);
+      }
+    } catch (error) {
+      showSearchMessage("搜索失败，请稍后重试。", true);
+    } finally {
+      setSearchLoading(false);
+    }
   }
 
   function showResults(results) {
     const el = document.getElementById("searchResults");
-    if (!results.length) { el.classList.add("hidden"); return; }
     el.classList.remove("hidden");
-    el.innerHTML = results.map((r, i) =>
-      '<div class="result-item" onclick="selectSong(' + i + ')">' +
-        '<div class="name">' + esc(r.songname) + '</div>' +
-        '<div class="meta">' + esc(r.singer) + '</div>' +
-      '</div>'
+
+    if (!results.length) {
+      showSearchMessage("没有找到匹配的歌曲。");
+      return;
+    }
+
+    el.innerHTML = results.map((result, index) =>
+      '<button type="button" class="result-item" role="option" onclick="selectSong(' + index + ')">' +
+        '<div class="result-name">' + esc(result.songname) + '</div>' +
+        '<div class="result-meta">' + esc(result.singer) + '</div>' +
+      '</button>'
     ).join("");
     window._searchResults = results;
   }
 
-  async function selectSong(idx) {
-    const r = window._searchResults[idx];
-    if (!r) return;
-    await waitForApi();
-    const data = await window.pywebview.api.load_lyrics(r.songmid, r.songname, r.singer);
-    if (data.error) return alert(data.error);
-    if (data.lyrics) {
-      lyrics = data.lyrics;
-      lrcOffset = data.lrc_offset || 0;
-      currentIndex = -1;
-      lastTitle = data.title || "";
-      const info = document.getElementById("songInfo");
-      info.classList.remove("hidden");
-      document.getElementById("songTitle").textContent = data.title || "";
-      document.getElementById("songArtist").textContent = data.artist || "";
-      document.getElementById("searchResults").classList.add("hidden");
-      renderLyrics();
+  async function selectSong(index) {
+    const result = window._searchResults && window._searchResults[index];
+    if (!result) return;
+
+    showSearchMessage("正在加载歌词...");
+
+    try {
+      await waitForApi();
+      const data = await window.pywebview.api.load_lyrics(
+        result.songmid,
+        result.songname,
+        result.singer
+      );
+
+      if (data && data.error) {
+        showSearchMessage(data.error, true);
+        return;
+      }
+
+      if (data && data.lyrics) {
+        lyrics = data.lyrics;
+        lrcOffset = data.lrc_offset || 0;
+        currentIndex = -1;
+        showSongInfo(data.title, data.artist);
+        document.getElementById("searchResults").classList.add("hidden");
+        renderLyrics();
+      }
+    } catch (error) {
+      showSearchMessage("歌词加载失败，请稍后重试。", true);
     }
   }
 
   function msToTime(ms) {
     if (!ms || ms < 0) ms = 0;
-    const s = Math.floor(ms / 1000);
-    const m = Math.floor(s / 60);
-    const ss = s % 60;
-    return m + ":" + String(ss).padStart(2, "0");
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    return minutes + ":" + String(remainder).padStart(2, "0");
   }
 
-  function esc(s) {
-    const d = document.createElement("div");
-    d.textContent = s || "";
-    return d.innerHTML;
+  function esc(value) {
+    const element = document.createElement("div");
+    element.textContent = value || "";
+    return element.innerHTML;
   }
 
-  document.getElementById("searchInput").addEventListener("keydown", e => {
-    if (e.key === "Enter") doSearch();
+  document.getElementById("searchInput").addEventListener("keydown", event => {
+    if (event.key === "Enter") doSearch();
+    if (event.key === "Escape") {
+      document.getElementById("searchResults").classList.add("hidden");
+    }
+  });
+
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".search-wrap")) {
+      document.getElementById("searchResults").classList.add("hidden");
+    }
   });
 
   startSync();

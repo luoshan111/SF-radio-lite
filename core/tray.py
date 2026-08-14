@@ -1,5 +1,7 @@
 """System tray integration for BIZHI wallpaper engine."""
 
+import sys
+import winreg
 import pystray
 import time
 from pathlib import Path
@@ -8,6 +10,41 @@ import logging
 import threading
 
 logger = logging.getLogger(__name__)
+
+RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
+RUN_VALUE = "BIZHI"
+
+
+def is_autostart_enabled() -> bool:
+    """Whether BIZHI is registered to start with Windows."""
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+            winreg.QueryValueEx(key, RUN_VALUE)
+            return True
+    except OSError:
+        return False
+
+
+def set_autostart(enabled: bool) -> bool:
+    """Register/remove BIZHI in the current user's Run key."""
+    try:
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, RUN_KEY) as key:
+            if enabled:
+                if getattr(sys, "frozen", False):
+                    cmd = f'"{sys.executable}"'
+                else:
+                    cmd = f'"{sys.executable}" "{Path(sys.argv[0]).resolve()}"'
+                winreg.SetValueEx(key, RUN_VALUE, 0, winreg.REG_SZ, cmd)
+            else:
+                try:
+                    winreg.DeleteValue(key, RUN_VALUE)
+                except FileNotFoundError:
+                    pass
+        logger.info("Autostart %s", "enabled" if enabled else "disabled")
+        return True
+    except OSError as e:
+        logger.error(f"Failed to toggle autostart: {e}")
+        return False
 
 
 def _create_icon_image(size=64):
@@ -46,6 +83,9 @@ class TrayManager:
         self._lyric_thread = None
         self._lyric_running = False
 
+    def _toggle_autostart(self, icon, item):
+        set_autostart(not is_autostart_enabled())
+
     def _build_menu(self):
         """Build the tray context menu."""
         return pystray.Menu(
@@ -56,6 +96,11 @@ class TrayManager:
             pystray.MenuItem(
                 "更换壁纸",
                 self._on_change_wallpaper if self._on_change_wallpaper else lambda: None,
+            ),
+            pystray.MenuItem(
+                "开机自启",
+                self._toggle_autostart,
+                checked=lambda item: is_autostart_enabled(),
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(

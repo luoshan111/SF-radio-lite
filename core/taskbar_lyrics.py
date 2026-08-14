@@ -6,6 +6,8 @@ import tkinter as tk
 import threading
 import logging
 
+from core.desktop import set_dpi_aware
+
 logger = logging.getLogger(__name__)
 
 GWL_EXSTYLE = -20
@@ -16,17 +18,7 @@ LWA_ALPHA = 0x02
 
 user32 = ctypes.windll.user32
 
-
-def _set_dpi_aware():
-    try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)
-    except Exception:
-        try:
-            user32.SetProcessDPIAware()
-        except Exception:
-            pass
-
-_set_dpi_aware()
+set_dpi_aware()
 
 
 def _find_taskbar():

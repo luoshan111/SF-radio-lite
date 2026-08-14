@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Runtime artifacts
+err.log
+run.log
+data/config.json
+data/*.json
+**/data/*.json
+
+# Build / packaging
+build/
+dist/
+
+# Virtual envs
+venv/
+.venv/
+
+# Editor
+.idea/
+.vscode/
+*.swp

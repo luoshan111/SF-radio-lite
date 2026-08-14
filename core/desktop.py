@@ -1,4 +1,4 @@
-﻿"""Windows desktop WorkerW injection for rendering behind desktop icons.
+"""Windows desktop WorkerW injection for rendering behind desktop icons.
 
 Uses the undocumented Windows technique of sending 0x052C to Progman
 to spawn a WorkerW window, then parenting our window into it.
@@ -11,7 +11,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 user32 = ctypes.windll.user32
-user32.SetProcessDPIAware()
 
 # Callback type for EnumWindows
 WNDENUMPROC = ctypes.WINFUNCTYPE(
@@ -20,11 +19,33 @@ WNDENUMPROC = ctypes.WINFUNCTYPE(
     ctypes.POINTER(ctypes.c_int),
 )
 
+
+def set_dpi_aware():
+    """Set process DPI awareness: per-monitor when possible, else system aware.
+
+    Must run before any window is created; safe to call multiple times
+    (the first call wins process-wide). All modules must use the SAME mode —
+    mixing system-aware and per-monitor-aware calls in one process gives
+    wrong coordinates on mixed-DPI setups.
+    """
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per-monitor
+        return
+    except Exception:
+        pass
+    try:
+        user32.SetProcessDPIAware()  # system aware fallback
+    except Exception:
+        pass
+
+
+set_dpi_aware()
+
 _workerw_hwnd = None
 _original_workerw = None
 
 
-def _find_shehll_def_view():
+def _find_shell_def_view():
     """Find the SHELLDLL_DefView window and its parent WorkerW."""
     progman = user32.FindWindowW("Progman", None)
     if not progman:
@@ -45,7 +66,7 @@ def _find_shehll_def_view():
 
 def _find_workerw_behind_defview():
     """Find the WorkerW window that is behind SHELLDLL_DefView."""
-    defview = _find_shehll_def_view()
+    defview = _find_shell_def_view()
 
     # SHELLDLL_DefView's parent should be a WorkerW
     parent = user32.GetParent(defview)
@@ -116,3 +137,57 @@ def restore_desktop():
 def get_screen_size() -> tuple:
     """Return (width, height) of the primary monitor."""
     return (user32.GetSystemMetrics(0), user32.GetSystemMetrics(1))
+
+
+class _OPENFILENAMEW(ctypes.Structure):
+    """Native OPENFILENAMEW struct for GetOpenFileNameW."""
+    _fields_ = [
+        ("lStructSize", ctypes.wintypes.DWORD),
+        ("hwndOwner", ctypes.wintypes.HWND),
+        ("hInstance", ctypes.wintypes.HINSTANCE),
+        ("lpstrFilter", ctypes.wintypes.LPCWSTR),
+        ("lpstrCustomFilter", ctypes.wintypes.LPWSTR),
+        ("nMaxCustFilter", ctypes.wintypes.DWORD),
+        ("nFilterIndex", ctypes.wintypes.DWORD),
+        ("lpstrFile", ctypes.wintypes.LPWSTR),
+        ("nMaxFile", ctypes.wintypes.DWORD),
+        ("lpstrFileTitle", ctypes.wintypes.LPWSTR),
+        ("nMaxFileTitle", ctypes.wintypes.DWORD),
+        ("lpstrInitialDir", ctypes.wintypes.LPCWSTR),
+        ("lpstrTitle", ctypes.wintypes.LPCWSTR),
+        ("Flags", ctypes.wintypes.DWORD),
+        ("nFileOffset", ctypes.wintypes.WORD),
+        ("nFileExtension", ctypes.wintypes.WORD),
+        ("lpstrDefExt", ctypes.wintypes.LPCWSTR),
+        ("lCustData", ctypes.wintypes.LPARAM),
+        ("lpfnHook", ctypes.wintypes.LPVOID),
+        ("lpTemplateName", ctypes.wintypes.LPCWSTR),
+    ]
+
+
+def pick_image_file(title: str = "选择壁纸图片"):
+    """Show a native Win32 open-file dialog for image/GIF files.
+
+    Uses GetOpenFileNameW (modal dialog with its own message loop), so it is
+    safe to call from a non-UI thread (e.g. the tray thread).
+    Returns the selected path, or None when cancelled.
+    """
+    max_path = 1024
+    buf = ctypes.create_unicode_buffer(max_path)
+    ofn = _OPENFILENAMEW()
+    ofn.lStructSize = ctypes.sizeof(_OPENFILENAMEW)
+    ofn.lpstrFilter = (
+        "图片文件 (*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp)\0"
+        "*.png;*.jpg;*.jpeg;*.bmp;*.gif;*.webp\0"
+        "所有文件 (*.*)\0*.*\0\0"
+    )
+    ofn.lpstrFile = buf
+    ofn.nMaxFile = max_path
+    ofn.lpstrTitle = title
+    ofn.Flags = 0x00000800 | 0x00001000  # OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST
+    try:
+        if ctypes.windll.comdlg32.GetOpenFileNameW(ctypes.byref(ofn)):
+            return buf.value
+    except Exception as e:
+        logger.error(f"File dialog failed: {e}")
+    return None

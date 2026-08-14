@@ -1,4 +1,4 @@
-﻿"""Wallpaper rendering engine using tkinter in the WorkerW layer.
+"""Wallpaper rendering engine using tkinter in the WorkerW layer.
 
 Supports static images, animated GIFs, and solid color backgrounds.
 """
@@ -24,9 +24,12 @@ class WallpaperEngine:
         self._running = False
         self._current_type = None
         self._gif_frames = []
+        self._gif_durations = []
         self._gif_index = 0
+        self._anim_after_id = None
         self._photo_ref = None  # prevent GC
         self._screen_w, self._screen_h = get_screen_size()
+        self.injected = False  # True when the window sits behind desktop icons
 
     def start(self):
         """Create the wallpaper window and inject into desktop."""
@@ -46,20 +49,47 @@ class WallpaperEngine:
         )
         self._canvas.pack(fill="both", expand=True)
 
-        # Defer injection to allow window to fully create
-        self._root.after(200, self._do_inject)
         self._running = True
+
+        # Inject immediately (synchronously). We cannot rely on root.after()
+        # here: tk's own mainloop never runs — pywebview owns the main thread,
+        # and tk timers only fire while tick() pumps the tk event queue.
+        self._root.update_idletasks()
+        self._root.update()
+        self._do_inject()
         logger.info("Wallpaper engine started")
+
+    def tick(self):
+        """Pump tk events. Called periodically from the UI thread (see main.py).
+
+        pywebview owns the main thread, so tk's mainloop never runs. Without
+        this pump, after() callbacks (GIF animation, etc.) never fire.
+        """
+        if self._root:
+            try:
+                self._root.update()
+            except Exception:
+                pass
 
     def _do_inject(self):
         """Inject the window into the WorkerW desktop layer."""
-        self._root.update_idletasks()
         hwnd = self._root.winfo_id()
         success = inject_window(hwnd)
+        self.injected = bool(success)
         if success:
             logger.info("Wallpaper window injected into desktop")
         else:
-            logger.warning("Failed to inject wallpaper, showing as overlay")
+            # Without injection this is a fullscreen borderless window
+            # floating ABOVE everything — hide it so the desktop stays usable.
+            try:
+                self._root.withdraw()
+            except Exception:
+                pass
+            logger.warning(
+                "Wallpaper injection FAILED (WorkerW desktop layer not found). "
+                "Wallpaper window hidden; desktop left untouched. "
+                "See core/desktop.py for the injection technique."
+            )
 
     def set_image(self, image_path: str):
         """Display a static image as wallpaper."""
@@ -82,6 +112,7 @@ class WallpaperEngine:
         try:
             gif = Image.open(gif_path)
             self._gif_frames = []
+            self._gif_durations = []
             self._gif_index = 0
 
             try:
@@ -91,6 +122,9 @@ class WallpaperEngine:
                         (self._screen_w, self._screen_h), Image.Resampling.LANCZOS
                     )
                     self._gif_frames.append(ImageTk.PhotoImage(frame))
+                    # Per-frame delay from the GIF, defaulting to 100ms.
+                    dur = gif.info.get("duration") or 100
+                    self._gif_durations.append(max(20, int(dur)))
                     gif.seek(len(self._gif_frames))
             except EOFError:
                 pass
@@ -102,17 +136,19 @@ class WallpaperEngine:
             logger.error(f"Failed to set GIF wallpaper: {e}")
 
     def _animate_gif(self):
-        """Animate through GIF frames."""
+        """Animate through GIF frames using each frame's own delay."""
         if not self._running or not self._gif_frames:
             return
+        idx = self._gif_index
         self._canvas.delete("all")
-        self._photo_ref = self._gif_frames[self._gif_index]
+        self._photo_ref = self._gif_frames[idx]
         self._canvas.create_image(0, 0, anchor="nw", image=self._photo_ref)
-        self._gif_index = (self._gif_index + 1) % len(self._gif_frames)
+        self._gif_index = (idx + 1) % len(self._gif_frames)
 
-        # Get frame duration from original GIF, default 100ms
-        delay = 100
-        self._root.after(delay, self._animate_gif)
+        # Frame duration comes from the GIF itself (default 100ms).
+        delay = self._gif_durations[idx] if idx < len(self._gif_durations) else 100
+        if self._root:
+            self._anim_after_id = self._root.after(delay, self._animate_gif)
 
     def set_gradient(self, color1: str = "#0f0c29", color2: str = "#302b63",
                      color3: str = "#24243e"):
@@ -153,8 +189,15 @@ class WallpaperEngine:
         self._canvas.delete("all")
 
     def _stop_gif(self):
-        """Stop GIF animation."""
+        """Stop GIF animation (cancel the pending tk timer if any)."""
+        if self._root and self._anim_after_id is not None:
+            try:
+                self._root.after_cancel(self._anim_after_id)
+            except Exception:
+                pass
+            self._anim_after_id = None
         self._gif_frames = []
+        self._gif_durations = []
         self._gif_index = 0
 
     def run(self):

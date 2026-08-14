@@ -6,11 +6,11 @@ Includes real-time playback sync via Windows SMTC.
 import logging
 import threading
 import time
-import asyncio
 from typing import Optional
 
 from widgets.music.qq_music import (
-    search_song, get_lyrics, parse_lrc, detect_qq_music_song
+    search_song, get_lyrics, parse_lrc, detect_qq_music_song,
+    get_playback_status as _smtc_status,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ def _merge_lyrics(original, translation):
 class MusicApi:
     """pywebview JS API for the music lyrics widget."""
 
-    def __init__(self, taskbar_lyrics=None):
+    def __init__(self, taskbar_lyrics=None, initial_offset_ms: int = 0):
         self._current_song = None
         self._current_lyrics = []
         self._current_title = ""
@@ -58,12 +58,13 @@ class MusicApi:
         self._detect_thread = None
         self._last_keyword = ""
         self._lrc_offset = 0
-        self._user_offset = 0
+        self._user_offset = initial_offset_ms
         self._window = None
         self._cached_lyric_text = "BIZHI - 动态壁纸"
         self._taskbar_lyrics = taskbar_lyrics
         self._bg_thread = None
         self._bg_running = False
+        self._last_js_sync = 0.0
         self._start_background_sync()
 
     # ── Search & Load ──
@@ -71,12 +72,17 @@ class MusicApi:
     def search(self, keyword: str):
         if not keyword or not keyword.strip():
             return {"error": "请输入搜索关键词"}
-        return search_song(keyword.strip())
+        results = search_song(keyword.strip())
+        if results is None:
+            return {"error": "搜索失败，请检查网络连接"}
+        if not results:
+            return {"error": "未找到相关歌曲"}
+        return results
 
     def load_lyrics(self, songmid: str, songname: str = "", singer: str = ""):
         lyrics_data = get_lyrics(songmid)
         if not lyrics_data:
-            return {"error": "未找到歌词"}
+            return {"error": "获取歌词失败（该歌曲可能没有歌词或网络异常）"}
         lrc_offset, parsed = parse_lrc(lyrics_data["lrc"])
         _, trans_parsed = parse_lrc(lyrics_data["trans"]) if lyrics_data.get("trans") else (0, [])
 
@@ -106,44 +112,26 @@ class MusicApi:
     # ── SMTC real-time playback ──
 
     def get_playback_status(self):
-        try:
-            from winsdk.windows.media.control import (
-                GlobalSystemMediaTransportControlsSessionManager
-            )
+        """Query current playback via SMTC (shared with qq_music module)."""
+        status = _smtc_status()
+        if status is None:
+            return {"error": "无法获取播放状态（无媒体会话或 SMTC 不可用）"}
+        return status
 
-            async def _read():
-                manager = await GlobalSystemMediaTransportControlsSessionManager.request_async()
-                session = manager.get_current_session()
-                if not session:
-                    return None
-                props = await session.try_get_media_properties_async()
-                timeline = session.get_timeline_properties()
-                playback = session.get_playback_info()
-                status_val = int(playback.playback_status)
-                return {
-                    "position_ms": int(timeline.position.total_seconds() * 1000),
-                    "duration_ms": int(timeline.end_time.total_seconds() * 1000),
-                    "is_playing": status_val == 4,
-                    "title": props.title or "",
-                    "artist": props.artist or "",
-                }
+    def auto_sync(self, from_bg: bool = False):
+        """Sync playback state + lyrics.
 
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    import concurrent.futures
-                    with concurrent.futures.ThreadPoolExecutor() as pool:
-                        return pool.submit(asyncio.run, _read()).result(timeout=3)
-                else:
-                    return loop.run_until_complete(_read())
-            except RuntimeError:
-                return asyncio.run(_read())
+        Called by the frontend (from_bg=False) or the background thread
+        (from_bg=True). When the visible widget is polling actively, the
+        background thread skips its redundant poll.
+        """
+        if not from_bg:
+            self._last_js_sync = time.time()
+        else:
+            # Frontend polls every 0.2-2s while visible; skip if it's fresh.
+            if self._last_js_sync and (time.time() - self._last_js_sync) < 3.0:
+                return None
 
-        except Exception as e:
-            logger.debug(f"SMTC status failed: {e}")
-            return {"error": str(e)}
-
-    def auto_sync(self):
         status = self.get_playback_status()
         if not status or status.get("error"):
             return status or {"error": "无法获取播放状态"}
@@ -174,6 +162,14 @@ class MusicApi:
 
     def set_user_offset(self, offset_ms: int):
         self._user_offset = offset_ms
+        # Persist so the offset survives restarts.
+        try:
+            from core.config import load_config, save_config
+            cfg = load_config()
+            cfg["music_offset_ms"] = offset_ms
+            save_config(cfg)
+        except Exception as e:
+            logger.debug(f"Failed to persist offset: {e}")
         return {"ok": True, "user_offset": offset_ms}
 
     # ── Legacy detect ──
@@ -183,6 +179,8 @@ class MusicApi:
         if not keyword:
             return {"error": "未检测到QQ音乐播放"}
         results = search_song(keyword, limit=1)
+        if results is None:
+            return {"error": "搜索失败，请检查网络连接"}
         if not results:
             return {"error": f"未找到匹配歌曲: {keyword}"}
         song = results[0]
@@ -225,10 +223,11 @@ class MusicApi:
         self._bg_thread.start()
 
     def _bg_sync_loop(self):
-        """Poll SMTC every 2s to keep cached lyrics fresh."""
+        """Poll SMTC every 2s to keep cached lyrics fresh (skips when the
+        visible widget is already polling actively)."""
         while self._bg_running:
             try:
-                self.auto_sync()
+                self.auto_sync(from_bg=True)
             except Exception as e:
                 logger.debug(f"Background sync error: {e}")
             time.sleep(2)
@@ -264,6 +263,7 @@ class MusicApi:
         # Push to taskbar lyrics overlay
         if self._taskbar_lyrics:
             self._taskbar_lyrics.update(title, current_text)
+
     def minimize(self):
         if self._window:
             self._window.minimize()

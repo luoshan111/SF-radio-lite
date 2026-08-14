@@ -1,4 +1,4 @@
-﻿"""QQ Music API client: search songs, fetch lyrics, detect current playback.
+"""QQ Music API client: search songs, fetch lyrics, detect current playback.
 
 Uses Windows SMTC (System Media Transport Controls) for detection,
 falls back to window title enumeration.
@@ -9,6 +9,7 @@ import json
 import logging
 import asyncio
 import ctypes
+import concurrent.futures
 import requests
 from typing import Optional
 
@@ -23,10 +24,29 @@ HEADERS = {
 }
 
 
-def search_song(keyword: str, limit: int = 5) -> list:
+def _run_async(coro, timeout: float = 5.0):
+    """Run a coroutine from a possibly-busy thread.
+
+    pywebview owns the main event loop, so if a loop is already running in
+    this thread we execute the coroutine in a fresh thread instead.
+    """
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        return asyncio.run(coro)
+    if loop.is_running():
+        with concurrent.futures.ThreadPoolExecutor() as pool:
+            future = pool.submit(asyncio.run, coro)
+            return future.result(timeout=timeout)
+    return loop.run_until_complete(coro)
+
+
+def search_song(keyword: str, limit: int = 5):
     """Search QQ Music for songs by keyword.
 
-    Returns list of {songmid, songname, singer, albumname, interval}.
+    Returns a list of {songmid, songname, singer, albumname, interval},
+    or None when the request itself failed (network / API error) —
+    callers can then distinguish "no results" ([]) from "failed" (None).
     """
     params = {
         "w": keyword,
@@ -56,7 +76,7 @@ def search_song(keyword: str, limit: int = 5) -> list:
         return results
     except Exception as e:
         logger.error(f"QQ Music search failed: {e}")
-        return []
+        return None
 
 
 def get_lyrics(songmid: str) -> Optional[dict]:
@@ -114,10 +134,11 @@ def parse_lrc(lrc_text: str) -> tuple:
     return offset_ms, lines
 
 
-def _detect_via_smtc() -> Optional[dict]:
-    """Detect currently playing media via Windows SMTC API.
+def get_playback_status() -> Optional[dict]:
+    """Query the current SMTC media session (single source of truth).
 
-    Returns {title, artist, app_id} or None.
+    Returns {title, artist, app_id, position_ms, duration_ms, is_playing}
+    or None when no session is available / SMTC is unsupported.
     """
     try:
         from winsdk.windows.media.control import (
@@ -127,34 +148,42 @@ def _detect_via_smtc() -> Optional[dict]:
         async def _get():
             manager = await GlobalSystemMediaTransportControlsSessionManager.request_async()
             session = manager.get_current_session()
-            if session:
-                props = await session.try_get_media_properties_async()
-                return {
-                    "title": props.title or "",
-                    "artist": props.artist or "",
-                    "app_id": session.source_app_user_model_id or "",
-                }
-            return None
+            if not session:
+                return None
+            props = await session.try_get_media_properties_async()
+            timeline = session.get_timeline_properties()
+            playback = session.get_playback_info()
+            return {
+                "title": props.title or "",
+                "artist": props.artist or "",
+                "app_id": session.source_app_user_model_id or "",
+                "position_ms": int(timeline.position.total_seconds() * 1000),
+                "duration_ms": int(timeline.end_time.total_seconds() * 1000),
+                "is_playing": int(playback.playback_status) == 4,
+            }
 
-        # Run async in a new event loop (pywebview owns the main loop)
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                import concurrent.futures
-                with concurrent.futures.ThreadPoolExecutor() as pool:
-                    future = pool.submit(asyncio.run, _get())
-                    return future.result(timeout=5)
-            else:
-                return loop.run_until_complete(_get())
-        except RuntimeError:
-            return asyncio.run(_get())
-
+        return _run_async(_get(), timeout=5)
     except ImportError:
-        logger.debug("winsdk not available, falling back to window title detection")
+        logger.debug("winsdk not available, SMTC disabled")
         return None
     except Exception as e:
-        logger.debug(f"SMTC detection failed: {e}")
+        logger.debug(f"SMTC status failed: {e}")
         return None
+
+
+def _detect_via_smtc() -> Optional[dict]:
+    """Detect currently playing media via Windows SMTC API.
+
+    Returns {title, artist, app_id} or None.
+    """
+    status = get_playback_status()
+    if status and status.get("title"):
+        return {
+            "title": status["title"],
+            "artist": status.get("artist", ""),
+            "app_id": status.get("app_id", ""),
+        }
+    return None
 
 
 def _detect_via_window_title() -> Optional[str]:

@@ -136,12 +136,13 @@ def remove_widget(name: str):
         logger.info(f"Widget '{name}' removed")
 
 
-def start_widgets():
+def start_widgets(func=None):
     """Start the webview event loop (blocks until all windows close).
 
     Must be called ONCE after all widgets are created. Runs in the
     calling thread (typically a dedicated thread).
     Note: when all windows are hidden (not destroyed), this loop stays alive.
+    func, if given, is invoked on the UI thread once the loop is running.
     """
     logger.info("Starting webview event loop")
-    webview.start(debug=False)
+    webview.start(debug=False, func=func)

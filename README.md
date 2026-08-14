@@ -4,11 +4,10 @@
 
 ## ✨ 功能
 
-- **动态壁纸** — 支持静态图片、GIF 动画、渐变色和纯色背景
-- **日程待办** — 桌面悬浮待办列表，支持优先级、截止日期、分类
-- **QQ音乐歌词** — 实时歌词显示，自动检测QQ音乐播放，滚动高亮
-- **任务栏歌词** — 歌词直接嵌入任务栏显示，酷狗风格，鼠标悬停托盘也可查看
-- **系统托盘** — 最小化到托盘，快捷切换组件和壁纸
+- **动态壁纸** — 支持静态图片、GIF 动画、渐变色和纯色背景（注入桌面图标层 WorkerW）
+- **QQ音乐歌词** — 实时歌词显示，通过 Windows SMTC 自动检测 QQ音乐播放，滚动高亮、原词+翻译
+- **任务栏歌词** — 歌词直接嵌入任务栏显示，酷狗风格，托盘悬停也可查看
+- **系统托盘** — 最小化到托盘，快捷更换壁纸、开机自启
 
 ## 📦 安装
 
@@ -19,7 +18,7 @@ pip install -r requirements.txt
 ## 🚀 使用
 
 ```bash
-# 默认启动（渐变壁纸 + 两个组件）
+# 默认启动（恢复上次壁纸或渐变壁纸 + 歌词组件）
 python main.py
 
 # 指定壁纸图片
@@ -35,31 +34,32 @@ python main.py --color "#1a1a2e"
 python main.py --no-wallpaper
 ```
 
+启动后壁纸类型、组件位置、歌词延迟都会持久化到 `data/config.json`，下次启动自动恢复。
+
 ## 📁 项目结构
 
 ```
 BIZHI/
 ├── main.py                    # 主入口
 ├── requirements.txt           # Python 依赖
+├── bizhi.spec                 # PyInstaller 打包配置
 ├── core/
-│   ├── desktop.py             # Windows WorkerW 桌面注入
-│   ├── wallpaper.py           # 壁纸渲染引擎
+│   ├── desktop.py             # Windows WorkerW 桌面注入 / 文件对话框 / DPI
+│   ├── wallpaper.py           # 壁纸渲染引擎（图片/GIF/渐变/纯色）
 │   ├── taskbar_lyrics.py      # 任务栏歌词组件
-│   └── tray.py                # 系统托盘管理
+│   ├── tray.py                # 系统托盘（含开机自启）
+│   └── config.py              # 配置持久化
 ├── widgets/
 │   ├── manager.py             # 组件窗口管理器
-│   ├── todo/
-│   │   ├── api.py             # 待办后端 CRUD
-│   │   └── index.html         # 待办前端 UI
 │   └── music/
-│       ├── api.py             # 歌词后端逻辑
+│       ├── api.py             # 歌词后端逻辑（SMTC 同步）
 │       ├── qq_music.py        # QQ音乐 API 客户端
 │       └── index.html         # 歌词前端 UI
+├── tests/                     # unittest 测试（python -m unittest discover -s tests）
 ├── assets/
-│   ├── wallpapers/            # 壁纸资源
 │   └── icons/                 # 图标资源
-└── data/
-    └── todos.json             # 待办数据存储
+└── data/                      # 运行时数据（已 gitignore）
+    └── config.json            # 配置（壁纸/窗口位置/歌词延迟）
 ```
 
 ## 🛠️ 技术栈
@@ -69,6 +69,7 @@ BIZHI/
 - **pywebview** — 组件 UI（基于 WebView2，Win11 原生）
 - **pystray** — 系统托盘
 - **Pillow** — 图像处理
+- **winsdk** — Windows SMTC（媒体播放检测，缺失时降级为窗口标题检测）
 - **Windows API (ctypes)** — WorkerW 桌面注入
 
 ## 🎵 任务栏歌词配置
@@ -80,7 +81,7 @@ BIZHI/
 ```python
 lyric_w = min(400, w // 3)   # 歌词区域宽度（像素）
 lyric_h = h - 4              # 歌词区域高度（比任务栏矮 4px，留出边距）
-lx = bar.right - lyric_w - 80  # 水平偏移：距屏幕右边缘 80px（托盘区域）
+lx = bar.left + 80           # 水平偏移：距任务栏左边缘 80px
 ly = bar.top + 2             # 垂直偏移：比任务栏顶部低 2px
 ```
 
@@ -88,17 +89,33 @@ ly = bar.top + 2             # 垂直偏移：比任务栏顶部低 2px
 
 | 场景 | 修改 |
 |------|------|
-| 歌词和应用按钮重叠 | 增大 `lx` 的末尾数字（如 `80` → `200`），向左移动 |
+| 歌词和应用按钮重叠 | 增大 `lx` 的末尾数字（如 `80` → `200`），向右移动 |
 | 歌词太窄/太宽 | 修改 `400`（如 `300` 或 `500`） |
 | 歌词位置偏上/偏下 | 调整 `ly` 的 `+2` 偏移量 |
-| 任务栏在屏幕左侧 | 将 `lx` 改为 `bar.left + offset` |
 | 任务栏在屏幕顶部 | 将 `ly` 改为 `bar.bottom + offset` |
 
 调整后重启 `python main.py` 生效。
 
+## 🧪 测试
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+覆盖：LRC 解析、原词/翻译合并、搜索与歌词 API 错误路径、SMTC 同步去重、配置持久化、退出幂等、托盘换壁纸流程、GIF 动画帧时长等。
+
+## 📦 打包发布
+
+```bash
+pip install pyinstaller
+pyinstaller bizhi.spec --noconfirm
+```
+
+产物在 `dist/BIZHI/`（onedir 模式）。打包版的数据（配置/待办）保存在 `%APPDATA%/BIZHI/`。
+
 ## 🚀 快速启动
 
-**桌面快捷方式：** 双击桌面上的 `BIZHI` 图标即可启动
+**桌面快捷方式：** 双击桌面上的 `BIZHI` 图标即可启动（或右键托盘图标 → 开机自启）
 
 **命令行：** 直接运行 `D:\code\BIZHI\BIZHI.bat`
 
@@ -107,5 +124,6 @@ ly = bar.top + 2             # 垂直偏移：比任务栏顶部低 2px
 - 需要 Windows 10/11 系统
 - 首次运行会安装 WebView2 运行时（Win11 已内置）
 - QQ音乐歌词功能需要网络连接
+- 壁纸注入依赖非文档化 Win32 技巧（`core/desktop.py`），个别 Windows 版本可能失败——失败时壁纸窗口会自动隐藏，程序其余功能不受影响
 - 组件窗口可通过拖拽标题栏移动
 - 右键系统托盘图标可退出程序
