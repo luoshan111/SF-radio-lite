@@ -30,6 +30,18 @@ DEFAULTS = {
         "music": {"x": 1480, "y": 100},
     },
     "music_offset_ms": 0,
+    "taskbar_lyrics": {
+        "enabled": True,
+        "show_title": True,
+        "preset": "clear",
+        "font_size": 16,
+        "font_weight": "bold",
+        "text_color": "#f5f7fa",
+        "title_color": "#f0b35a",
+        "effect": "outline",
+        "background_mode": "transparent",
+        "background_color": "#171a20",
+    },
 }
 
 

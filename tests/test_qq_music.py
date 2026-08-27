@@ -91,6 +91,21 @@ class TestSearchSong(unittest.TestCase):
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["songmid"], "M1")
         self.assertEqual(results[0]["singer"], "S1/S2")
+        self.assertEqual(results[0]["albummid"], "")
+        self.assertEqual(results[0]["cover_url"], "")
+
+    def test_album_cover_url(self):
+        self.assertIn("T002R300x300M000ALBUM1", q.album_cover_url("ALBUM1", 300))
+
+    def test_album_mid_maps_to_cover_url(self):
+        payload = {"data": {"song": {"list": [{
+            "mid": "M1", "name": "Song A", "singer": [],
+            "album": {"mid": "A1", "name": "Album"},
+        }]}}}
+        with mock.patch.object(q.requests, "get", return_value=self._FakeResp(payload)):
+            result = q.search_song("keyword")[0]
+        self.assertEqual(result["albummid"], "A1")
+        self.assertIn("T002R500x500M000A1", result["cover_url"])
 
     def test_no_results_returns_empty_list(self):
         payload = {"data": {"song": {"list": []}}}

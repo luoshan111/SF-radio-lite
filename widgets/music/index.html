@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QQ 音乐歌词</title>
 <style>
+  /* Hallmark · component: desktop music card · genre: atmospheric · theme: incumbent amber glass
+   * states: default · hover · focus · active · disabled · loading · error · success
+   * studied reference: user-provided music card · pre-emit critique: P4 H4 E4 S5 R4 V4
+   */
   * { box-sizing: border-box; }
 
   :root {
@@ -12,6 +16,8 @@
     --surface: rgba(20, 23, 29, 0.94);
     --surface-raised: rgba(255, 255, 255, 0.065);
     --surface-hover: rgba(255, 255, 255, 0.1);
+    --surface-menu: #242832;
+    --surface-menu-selected: #493b2a;
     --border: rgba(255, 255, 255, 0.1);
     --border-strong: rgba(255, 255, 255, 0.16);
     --text: #f4f5f7;
@@ -23,6 +29,34 @@
     --danger: #ff887b;
     --radius: 8px;
     --ease: 180ms cubic-bezier(0.16, 1, 0.3, 1);
+    --font-display: "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    --font-body: "Microsoft YaHei UI", "Segoe UI", sans-serif;
+    --font-data: "Cascadia Mono", "Consolas", monospace;
+    --color-canvas: oklch(16% 0.012 250);
+    --color-player-surface: oklch(22% 0.015 250 / 0.78);
+    --color-player-raised: oklch(29% 0.018 250 / 0.86);
+    --color-player-track: oklch(42% 0.012 250 / 0.7);
+    --color-player-ink: oklch(96% 0.008 75);
+    --color-player-muted: oklch(76% 0.012 250);
+    --color-player-accent: oklch(79% 0.13 72);
+    --color-player-focus: oklch(84% 0.14 72);
+    --color-player-error: oklch(72% 0.16 28);
+    --color-player-success: oklch(76% 0.13 155);
+    --color-backdrop-overlay-start: oklch(14% 0.012 250 / 0.58);
+    --color-backdrop-overlay-end: oklch(12% 0.012 250 / 0.94);
+    --color-player-border: oklch(94% 0.008 75 / 0.18);
+    --color-player-divider: oklch(94% 0.008 75 / 0.08);
+    --color-player-shadow: oklch(8% 0.01 250 / 0.28);
+    --color-player-album: oklch(68% 0.012 250);
+    --color-player-section: oklch(16% 0.012 250 / 0.34);
+    --color-player-footer: oklch(14% 0.012 250 / 0.66);
+    --color-player-mode: oklch(66% 0.012 250);
+    --player-cover-size: 144px;
+    --player-module-gap: 12px;
+    --player-inline-pad: 14px;
+    --dur-micro: 120ms;
+    --dur-short: 220ms;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   html,
@@ -54,6 +88,7 @@
     grid-template-rows: auto auto minmax(0, 1fr) auto;
     width: 100%;
     height: 100%;
+    min-height: 0;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius);
@@ -181,6 +216,378 @@
 
   .icon-button:active {
     transform: scale(0.94);
+  }
+
+  .icon-button[aria-pressed="true"] {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .widget.settings-open .top-region,
+  .widget.settings-open .lyrics-section,
+  .widget.settings-open .footer {
+    display: none;
+  }
+
+  .settings-page {
+    grid-row: 2 / -1;
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    min-height: 0;
+    padding: 14px;
+  }
+
+  .settings-page.hidden {
+    display: none;
+  }
+
+  .settings-heading {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 0 1px 11px;
+  }
+
+  .settings-heading h2 {
+    margin: 0;
+    color: var(--text);
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .settings-heading p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  .settings-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .settings-tab {
+    min-height: 31px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 11px;
+    transition: background-color var(--ease), color var(--ease);
+  }
+
+  .settings-tab:hover {
+    color: var(--text-secondary);
+  }
+
+  .settings-tab[aria-selected="true"] {
+    background: var(--surface-hover);
+    color: var(--text);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .settings-content {
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px 1px 4px;
+    scrollbar-gutter: stable;
+  }
+
+  .settings-content::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .settings-content::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.13);
+  }
+
+  .settings-panel.hidden {
+    display: none;
+  }
+
+  .setting-section + .setting-section {
+    margin-top: 16px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .setting-section-title {
+    margin-bottom: 9px;
+    color: var(--text-secondary);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .setting-row,
+  .setting-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    min-height: 38px;
+  }
+
+  .setting-row + .setting-row,
+  .setting-control + .setting-control {
+    margin-top: 4px;
+  }
+
+  .setting-label {
+    min-width: 0;
+    color: var(--text-secondary);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+
+  .setting-label small {
+    display: block;
+    margin-top: 2px;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .setting-select {
+    width: 134px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    outline: none;
+    background: var(--surface-raised);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 11px;
+  }
+
+  .setting-select:focus {
+    border-color: rgba(240, 179, 90, 0.72);
+  }
+
+  .setting-select option {
+    background-color: var(--surface-menu);
+    color: var(--text);
+  }
+
+  .setting-select option:checked {
+    background-color: var(--surface-menu-selected);
+    color: #fff4e3;
+  }
+
+  .range-control {
+    display: flex;
+    align-items: center;
+    width: 144px;
+    gap: 8px;
+  }
+
+  .range-control input[type="range"] {
+    width: 104px;
+    accent-color: var(--accent);
+  }
+
+  .range-value {
+    width: 30px;
+    color: var(--accent);
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
+    text-align: right;
+  }
+
+  .color-control {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .color-control input[type="color"] {
+    width: 31px;
+    height: 27px;
+    padding: 2px;
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    background: var(--surface-raised);
+    cursor: pointer;
+  }
+
+  .color-value {
+    color: var(--text-muted);
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+  }
+
+  .segmented {
+    display: flex;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .segment {
+    min-width: 44px;
+    height: 25px;
+    padding: 0 7px;
+    border: 0;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    transition: background-color var(--ease), color var(--ease);
+  }
+
+  .segment[aria-pressed="true"] {
+    background: var(--surface-hover);
+    color: var(--text);
+  }
+
+  .toggle {
+    position: relative;
+    display: inline-flex;
+    width: 38px;
+    height: 22px;
+    flex: 0 0 38px;
+  }
+
+  .toggle input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  .toggle-track {
+    width: 100%;
+    height: 100%;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.15);
+    cursor: pointer;
+    transition: background-color var(--ease);
+  }
+
+  .toggle-track::after {
+    display: block;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #d5dae2;
+    content: "";
+    transition: transform var(--ease), background-color var(--ease);
+  }
+
+  .toggle input:checked + .toggle-track {
+    background: var(--accent);
+  }
+
+  .toggle input:checked + .toggle-track::after {
+    transform: translateX(16px);
+    background: #272118;
+  }
+
+  .toggle input:focus-visible + .toggle-track {
+    outline: 2px solid rgba(240, 179, 90, 0.9);
+    outline-offset: 2px;
+  }
+
+  .toggle input:disabled + .toggle-track {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .theme-preview {
+    position: relative;
+    isolation: isolate;
+    min-height: 68px;
+    overflow: hidden;
+    margin-bottom: 14px;
+    padding: 15px 13px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--preview-background, transparent);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .theme-preview::before {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background: linear-gradient(90deg, rgba(255,255,255,0.035), transparent 45%, rgba(255,255,255,0.025));
+    content: "";
+  }
+
+  .preview-title,
+  .preview-lyric {
+    position: relative;
+    z-index: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .preview-title {
+    color: var(--preview-title, var(--accent));
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .preview-lyric {
+    margin-top: 6px;
+    color: var(--preview-text, var(--text));
+    font-size: var(--preview-size, 16px);
+    font-weight: var(--preview-weight, 700);
+    text-shadow: var(--preview-shadow, 1px 1px 0 #000);
+  }
+
+  .settings-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 16px;
+    padding-top: 13px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+  }
+
+  .save-status {
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 10px;
+  }
+
+  .save-status.error {
+    color: var(--danger);
+  }
+
+  .secondary-action {
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-raised);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 10px;
+    transition: background-color var(--ease), color var(--ease), border-color var(--ease);
+  }
+
+  .secondary-action:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-hover);
+    color: var(--text);
   }
 
   .top-region {
@@ -568,6 +975,377 @@
     text-align: center;
   }
 
+  /* Music-card modules stay independent so later iterations can reorder them. */
+  .widget {
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    background: var(--color-canvas);
+  }
+
+  .widget > :not(.artwork-backdrop) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .artwork-backdrop {
+    position: absolute;
+    inset: -22px;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .artwork-backdrop::after {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, var(--color-backdrop-overlay-start), var(--color-backdrop-overlay-end));
+    content: "";
+  }
+
+  .artwork-backdrop img {
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    object-fit: cover;
+    filter: blur(28px) saturate(0.9);
+    transform: scale(1.12);
+    transition: opacity var(--dur-short) var(--ease-out);
+  }
+
+  .artwork-backdrop img.is-loaded {
+    opacity: 0.54;
+  }
+
+  .titlebar {
+    min-height: 48px;
+    border-bottom-color: var(--color-player-divider);
+    background: oklch(16% 0.012 250 / 0.3);
+  }
+
+  .top-region {
+    display: grid;
+    gap: var(--player-module-gap);
+    min-width: 0;
+    min-height: 0;
+    padding: var(--player-module-gap) var(--player-inline-pad) 10px;
+  }
+
+  .now-playing {
+    display: grid;
+    grid-template-columns: var(--player-cover-size) minmax(0, 1fr);
+    align-items: end;
+    gap: 14px;
+    min-width: 0;
+  }
+
+  .cover-frame {
+    position: relative;
+    width: var(--player-cover-size);
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: 1px solid var(--color-player-border);
+    border-radius: 8px;
+    background: var(--color-player-raised);
+    box-shadow: 0 14px 28px var(--color-player-shadow);
+  }
+
+  .cover-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    object-fit: cover;
+    transform: scale(1.015);
+    transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
+  }
+
+  .cover-frame.has-cover .cover-image {
+    opacity: 1;
+    transform: none;
+  }
+
+  .cover-fallback {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: 7px;
+    color: var(--color-player-muted);
+    font-family: var(--font-body);
+    font-size: 10px;
+    text-align: center;
+    transition: opacity var(--dur-micro) var(--ease-out);
+  }
+
+  .cover-frame.has-cover .cover-fallback {
+    opacity: 0;
+  }
+
+  .cover-note {
+    color: var(--color-player-accent);
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 34px;
+    line-height: 1;
+  }
+
+  .now-playing .song-info {
+    min-width: 0;
+    margin: 0 0 2px;
+  }
+
+  .song-kicker {
+    margin-bottom: 8px;
+    color: var(--color-player-accent);
+    font-family: var(--font-data);
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .now-playing .song-title {
+    display: -webkit-box;
+    overflow: hidden;
+    color: var(--color-player-ink);
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    line-height: 1.25;
+    text-overflow: initial;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .now-playing .song-artist {
+    overflow: hidden;
+    margin-top: 6px;
+    color: var(--color-player-muted);
+    font-family: var(--font-body);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .song-album {
+    overflow: hidden;
+    margin-top: 4px;
+    color: var(--color-player-album);
+    font-family: var(--font-body);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .search-wrap {
+    margin-top: 1px;
+  }
+
+  .search-bar input {
+    background: var(--color-player-surface);
+  }
+
+  .lyrics-section {
+    min-width: 0;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    border-top: 1px solid var(--color-player-divider);
+    background: var(--color-player-section);
+  }
+
+  .lyrics-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 32px;
+    padding: 7px var(--player-inline-pad) 5px;
+    color: var(--color-player-muted);
+    font-family: var(--font-body);
+    font-size: 10px;
+  }
+
+  .lyrics-mode {
+    color: var(--color-player-mode);
+  }
+
+  .lyrics-area {
+    padding: 0 20px 10px;
+  }
+
+  .lyric-pair {
+    padding: 7px 0;
+  }
+
+  .lyric-line {
+    color: var(--color-player-muted);
+  }
+
+  .lyric-pair.active .lyric-line {
+    color: var(--color-player-accent);
+  }
+
+  .footer {
+    display: grid;
+    min-width: 0;
+    min-height: 0;
+    gap: 6px;
+    padding: 9px var(--player-inline-pad) 11px;
+    border-top-color: var(--color-player-border);
+    background: var(--color-player-footer);
+  }
+
+  .progress-row {
+    grid-template-columns: 38px minmax(0, 1fr) 38px;
+    gap: 7px;
+  }
+
+  .progress-seek {
+    --seek-progress: 0%;
+    width: 100%;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .progress-seek::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 4px;
+    background: linear-gradient(
+      to right,
+      var(--color-player-accent) 0 var(--seek-progress),
+      var(--color-player-track) var(--seek-progress) 100%
+    );
+  }
+
+  .progress-seek::-webkit-slider-thumb {
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    appearance: none;
+    border: 3px solid var(--color-player-ink);
+    border-radius: 50%;
+    background: var(--color-player-accent);
+  }
+
+  .progress-seek:focus-visible {
+    outline-color: var(--color-player-focus);
+  }
+
+  .transport-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 44px 52px 44px minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    gap: 8px;
+    min-height: 52px;
+  }
+
+  .control-status {
+    justify-self: start;
+    overflow: hidden;
+    max-width: 64px;
+    color: var(--color-player-muted);
+    font-family: var(--font-body);
+    font-size: 10px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .control-status.error {
+    color: var(--color-player-error);
+  }
+
+  .transport-button {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-player-ink);
+    cursor: pointer;
+    font-family: "Segoe UI Symbol", sans-serif;
+    font-size: 22px;
+    line-height: 1;
+    transition: background-color var(--dur-micro) var(--ease-out), transform var(--dur-micro) var(--ease-out), opacity var(--dur-micro) var(--ease-out);
+  }
+
+  .transport-button:active,
+  .transport-button[data-state="active"] {
+    transform: translateY(1px);
+  }
+
+  .transport-button:focus-visible {
+    outline-color: var(--color-player-focus);
+  }
+
+  .transport-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .transport-button-primary {
+    width: 52px;
+    height: 52px;
+    background: var(--color-player-ink);
+    color: var(--color-canvas);
+    font-size: 24px;
+  }
+
+  .transport-button[data-state="loading"] {
+    color: transparent;
+  }
+
+  .transport-button[data-state="loading"]::after {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-player-muted);
+    border-top-color: var(--color-player-accent);
+    border-radius: 50%;
+    content: "";
+    animation: transport-spin 700ms linear infinite;
+  }
+
+  .transport-button[data-state="error"] {
+    border-color: var(--color-player-error);
+    color: var(--color-player-error);
+  }
+
+  .transport-button[data-state="success"] {
+    border-color: var(--color-player-success);
+  }
+
+  @keyframes transport-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .transport-balance {
+    width: 64px;
+  }
+
+  .offset-row {
+    margin-top: 0;
+  }
+
+  @media (hover: hover) {
+    .transport-button:hover {
+      background: var(--color-player-raised);
+    }
+
+    .transport-button-primary:hover {
+      background: var(--color-player-accent);
+      color: var(--color-canvas);
+    }
+  }
+
   button:focus-visible,
   input:focus-visible {
     outline: 2px solid rgba(240, 179, 90, 0.9);
@@ -582,6 +1360,51 @@
     .lyrics-spacer-bottom { min-height: 64px; }
     .footer { padding-top: 8px; padding-bottom: 9px; }
     .offset-row { margin-top: 8px; }
+    .settings-page { padding-top: 9px; }
+    .settings-content { padding-top: 9px; }
+  }
+
+  @media (max-width: 340px), (max-height: 650px) {
+    :root {
+      --player-cover-size: 112px;
+      --player-module-gap: 9px;
+      --player-inline-pad: 11px;
+    }
+
+    .now-playing {
+      gap: 11px;
+    }
+
+    .now-playing .song-title {
+      font-size: 16px;
+    }
+
+    .song-kicker {
+      margin-bottom: 5px;
+    }
+
+    .lyrics-heading {
+      min-height: 28px;
+    }
+
+    .footer {
+      gap: 3px;
+      padding-top: 6px;
+      padding-bottom: 7px;
+    }
+
+    .transport-row {
+      min-height: 46px;
+    }
+
+    .transport-button-primary {
+      width: 46px;
+      height: 46px;
+    }
+
+    .offset-row {
+      display: none;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -597,15 +1420,23 @@
 
   @media (prefers-reduced-transparency: reduce) {
     .widget {
-      background: #1d2128;
+      background: var(--color-canvas);
       backdrop-filter: none;
       -webkit-backdrop-filter: none;
+    }
+
+    .artwork-backdrop {
+      display: none;
     }
   }
 </style>
 </head>
 <body>
 <main class="widget">
+  <div class="artwork-backdrop" aria-hidden="true">
+    <img id="albumBackdrop" src="../../assets/icons/bizhi.png" alt="">
+  </div>
+
   <header class="titlebar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">&#9835;</span>
@@ -618,14 +1449,131 @@
       </div>
     </div>
     <div class="window-actions">
+      <button class="icon-button" id="settingsButton" type="button" onclick="toggleSettings()" title="打开设置" aria-label="打开设置" aria-pressed="false">&#9881;&#65038;</button>
       <button class="icon-button" type="button" onclick="minimizeWin()" title="最小化" aria-label="最小化">&#8722;</button>
     </div>
   </header>
 
+  <section class="settings-page hidden" id="settingsPage">
+    <div class="settings-heading">
+      <h2>设置</h2>
+      <p id="settingsSaveStatus">实时保存</p>
+    </div>
+
+    <div class="settings-tabs" role="tablist" aria-label="设置分类">
+      <button class="settings-tab" id="generalTab" type="button" role="tab" aria-selected="true" aria-controls="generalPanel" onclick="setSettingsTab('general')">常规</button>
+      <button class="settings-tab" id="taskbarTab" type="button" role="tab" aria-selected="false" aria-controls="taskbarPanel" onclick="setSettingsTab('taskbar')">任务栏样式</button>
+    </div>
+
+    <div class="settings-content">
+      <section class="settings-panel" id="generalPanel" role="tabpanel" aria-labelledby="generalTab">
+        <div class="setting-section">
+          <div class="setting-section-title">显示内容</div>
+          <label class="setting-row" for="taskbarEnabled">
+            <span class="setting-label">任务栏歌词<small>关闭后任务栏文字会立即隐藏</small></span>
+            <span class="toggle"><input id="taskbarEnabled" type="checkbox" data-theme-control="enabled"><span class="toggle-track"></span></span>
+          </label>
+          <label class="setting-row" for="taskbarShowTitle">
+            <span class="setting-label">显示歌曲名<small>为歌词预留一段标题空间</small></span>
+            <span class="toggle"><input id="taskbarShowTitle" type="checkbox" data-theme-control="show_title"><span class="toggle-track"></span></span>
+          </label>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">系统</div>
+          <label class="setting-row" for="autostartEnabled">
+            <span class="setting-label">开机自启动<small>登录 Windows 后自动运行 BIZHI</small></span>
+            <span class="toggle"><input id="autostartEnabled" type="checkbox" data-autostart-control><span class="toggle-track"></span></span>
+          </label>
+        </div>
+      </section>
+
+      <section class="settings-panel hidden" id="taskbarPanel" role="tabpanel" aria-labelledby="taskbarTab">
+        <div class="theme-preview" id="themePreview" aria-label="任务栏样式预览">
+          <div class="preview-title">QQ 音乐</div>
+          <div class="preview-lyric">现在播放的歌词会显示在这里</div>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">文字样式</div>
+          <label class="setting-control" for="themePreset">
+            <span class="setting-label">主题预设</span>
+            <select class="setting-select" id="themePreset" aria-label="主题预设" data-theme-control="preset">
+              <option value="clear">清晰浅色</option>
+              <option value="amber">暖金高亮</option>
+              <option value="ice">冰蓝清透</option>
+              <option value="contrast">深色高对比</option>
+              <option value="custom">自定义</option>
+            </select>
+          </label>
+          <div class="setting-control">
+            <span class="setting-label">字号</span>
+            <span class="range-control"><input id="themeFontSize" type="range" min="11" max="24" step="1" aria-label="字号" data-theme-control="font_size"><span class="range-value" id="themeFontSizeValue">16px</span></span>
+          </div>
+          <div class="setting-control">
+            <span class="setting-label">字重</span>
+            <span class="segmented" data-segmented="font_weight">
+              <button class="segment" type="button" data-theme-key="font_weight" data-theme-value="normal" aria-pressed="false">常规</button>
+              <button class="segment" type="button" data-theme-key="font_weight" data-theme-value="bold" aria-pressed="true">加粗</button>
+            </span>
+          </div>
+          <label class="setting-control" for="themeTextColor">
+            <span class="setting-label">歌词颜色</span>
+            <span class="color-control"><input id="themeTextColor" type="color" value="#f5f7fa" data-theme-control="text_color"><span class="color-value" id="themeTextColorValue">#F5F7FA</span></span>
+          </label>
+          <label class="setting-control" for="themeTitleColor">
+            <span class="setting-label">歌曲名颜色</span>
+            <span class="color-control"><input id="themeTitleColor" type="color" value="#f0b35a" data-theme-control="title_color"><span class="color-value" id="themeTitleColorValue">#F0B35A</span></span>
+          </label>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">可读性</div>
+          <div class="setting-control">
+            <span class="setting-label">文字效果</span>
+            <span class="segmented" data-segmented="effect">
+              <button class="segment" type="button" data-theme-key="effect" data-theme-value="none" aria-pressed="false">无</button>
+              <button class="segment" type="button" data-theme-key="effect" data-theme-value="shadow" aria-pressed="false">阴影</button>
+              <button class="segment" type="button" data-theme-key="effect" data-theme-value="outline" aria-pressed="true">描边</button>
+            </span>
+          </div>
+          <div class="setting-control">
+            <span class="setting-label">背景模式</span>
+            <span class="segmented" data-segmented="background_mode">
+              <button class="segment" type="button" data-theme-key="background_mode" data-theme-value="transparent" aria-pressed="true">透明</button>
+              <button class="segment" type="button" data-theme-key="background_mode" data-theme-value="solid" aria-pressed="false">深色底</button>
+            </span>
+          </div>
+          <label class="setting-control" for="themeBackgroundColor">
+            <span class="setting-label">背景颜色</span>
+            <span class="color-control"><input id="themeBackgroundColor" type="color" value="#171a20" data-theme-control="background_color"><span class="color-value" id="themeBackgroundColorValue">#171A20</span></span>
+          </label>
+        </div>
+
+        <div class="settings-actions">
+          <span class="save-status" id="taskbarSaveStatus">调整后自动保存</span>
+          <button class="secondary-action" type="button" onclick="resetTaskbarTheme()">恢复默认</button>
+        </div>
+      </section>
+    </div>
+  </section>
+
   <section class="top-region">
-    <div class="song-info hidden" id="songInfo">
-      <div class="song-title" id="songTitle"></div>
-      <div class="song-artist" id="songArtist"></div>
+    <div class="now-playing" id="songInfo">
+      <div class="cover-frame" id="coverFrame">
+        <img class="cover-image" id="albumCover" src="../../assets/icons/bizhi.png" alt="当前歌曲封面">
+        <div class="cover-fallback" id="coverFallback" aria-hidden="true">
+          <span class="cover-note">&#9835;</span>
+          <span>等待封面</span>
+        </div>
+      </div>
+
+      <div class="song-info">
+        <div class="song-kicker">正在播放</div>
+        <div class="song-title" id="songTitle">等待 QQ 音乐播放</div>
+        <div class="song-artist" id="songArtist">打开播放器后自动同步</div>
+        <div class="song-album" id="songAlbum">BIZHI 音乐挂件</div>
+      </div>
     </div>
 
     <div class="search-wrap">
@@ -637,19 +1585,33 @@
     </div>
   </section>
 
-  <section class="lyrics-area" id="lyricsArea" aria-live="polite">
-    <div class="empty-state" id="emptyState">
-      <div class="empty-mark" aria-hidden="true">&#9835;</div>
-      <p class="empty-title">等待 QQ 音乐播放</p>
-      <p class="empty-copy">开始播放后，歌词和翻译会自动同步显示。</p>
+  <section class="lyrics-section">
+    <div class="lyrics-heading">
+      <span>同步歌词</span>
+      <span class="lyrics-mode" id="lyricsMode">原词 / 翻译</span>
+    </div>
+    <div class="lyrics-area" id="lyricsArea" aria-live="polite">
+      <div class="empty-state" id="emptyState">
+        <div class="empty-mark" aria-hidden="true">&#9835;</div>
+        <p class="empty-title">等待 QQ 音乐播放</p>
+        <p class="empty-copy">开始播放后，歌词和翻译会自动同步显示。</p>
+      </div>
     </div>
   </section>
 
   <footer class="footer">
     <div class="progress-row" id="controls" aria-label="播放进度">
       <span class="time-label" id="posLabel">0:00</span>
-      <div class="progress-bar" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+      <input class="progress-seek" id="progressSeek" type="range" min="0" max="100" step="0.1" value="0" aria-label="播放进度">
       <span class="time-label" id="durLabel">0:00</span>
+    </div>
+
+    <div class="transport-row" aria-label="播放控制">
+      <span class="control-status" id="controlStatus" aria-live="polite"></span>
+      <button class="transport-button" id="previousButton" type="button" onclick="sendPlaybackAction('previous', this)" title="上一首" aria-label="上一首">&#9198;</button>
+      <button class="transport-button transport-button-primary" id="playPauseButton" type="button" onclick="sendPlaybackAction('toggle', this)" title="播放" aria-label="播放" aria-pressed="false">&#9654;</button>
+      <button class="transport-button" id="nextButton" type="button" onclick="sendPlaybackAction('next', this)" title="下一首" aria-label="下一首">&#9197;</button>
+      <span class="transport-balance" aria-hidden="true"></span>
     </div>
 
     <div class="offset-row" id="offsetBar">
@@ -669,24 +1631,277 @@
   let userOffset = null;
   let lrcOffset = 0;
   let syncTimer = null;
+  let settingsOpen = false;
+  let taskbarTheme = null;
+  let themeSaveTimer = null;
+  let currentDurationMs = 0;
+  let userSeeking = false;
 
-  function waitForApi() {
+  const themePresets = {
+    clear: {
+      preset: "clear",
+      font_size: 16,
+      font_weight: "bold",
+      text_color: "#f5f7fa",
+      title_color: "#f0b35a",
+      effect: "outline",
+      background_mode: "transparent",
+      background_color: "#171a20"
+    },
+    amber: {
+      preset: "amber",
+      font_size: 17,
+      font_weight: "bold",
+      text_color: "#fff1d2",
+      title_color: "#f0b35a",
+      effect: "shadow",
+      background_mode: "transparent",
+      background_color: "#171a20"
+    },
+    ice: {
+      preset: "ice",
+      font_size: 16,
+      font_weight: "bold",
+      text_color: "#e5f5ff",
+      title_color: "#7bd3ff",
+      effect: "outline",
+      background_mode: "transparent",
+      background_color: "#171a20"
+    },
+    contrast: {
+      preset: "contrast",
+      font_size: 17,
+      font_weight: "bold",
+      text_color: "#ffffff",
+      title_color: "#ffffff",
+      effect: "shadow",
+      background_mode: "solid",
+      background_color: "#101217"
+    }
+  };
+
+  function waitForApi(timeoutMs = 3000) {
     return new Promise(resolve => {
+      const startedAt = Date.now();
       const check = () => {
-        if (window.pywebview && window.pywebview.api) resolve();
-        else setTimeout(check, 100);
+        if (window.pywebview && window.pywebview.api) {
+          resolve(true);
+        } else if (Date.now() - startedAt >= timeoutMs) {
+          resolve(false);
+        } else {
+          setTimeout(check, 100);
+        }
       };
       check();
     });
   }
 
   async function minimizeWin() {
-    await waitForApi();
+    if (!await waitForApi()) return;
     window.pywebview.api.minimize();
   }
 
+  async function toggleSettings() {
+    settingsOpen = !settingsOpen;
+    const widget = document.querySelector(".widget");
+    const page = document.getElementById("settingsPage");
+    const button = document.getElementById("settingsButton");
+    widget.classList.toggle("settings-open", settingsOpen);
+    page.classList.toggle("hidden", !settingsOpen);
+    button.setAttribute("aria-pressed", String(settingsOpen));
+    button.setAttribute("title", settingsOpen ? "关闭设置" : "打开设置");
+    button.setAttribute("aria-label", settingsOpen ? "关闭设置" : "打开设置");
+
+    if (settingsOpen) {
+      setSettingsTab("general");
+      await loadTaskbarTheme();
+    } else {
+      button.focus();
+    }
+  }
+
+  function setSettingsTab(tab) {
+    const isTaskbar = tab === "taskbar";
+    document.getElementById("generalTab").setAttribute("aria-selected", String(!isTaskbar));
+    document.getElementById("taskbarTab").setAttribute("aria-selected", String(isTaskbar));
+    document.getElementById("generalPanel").classList.toggle("hidden", isTaskbar);
+    document.getElementById("taskbarPanel").classList.toggle("hidden", !isTaskbar);
+  }
+
+  async function loadTaskbarTheme() {
+    const status = document.getElementById("settingsSaveStatus");
+    status.textContent = "读取中";
+    status.classList.remove("error");
+    try {
+      const ready = await waitForApi();
+      if (!ready) {
+        taskbarTheme = Object.assign({}, themePresets.clear, { enabled: true, show_title: true });
+        applyThemeToControls(taskbarTheme);
+        document.getElementById("autostartEnabled").checked = false;
+        status.textContent = "预览模式";
+        return;
+      }
+      const [result, autostart] = await Promise.all([
+        window.pywebview.api.get_taskbar_theme(),
+        window.pywebview.api.get_autostart()
+      ]);
+      taskbarTheme = result && !result.error ? result : Object.assign({}, themePresets.clear, { enabled: true, show_title: true });
+      applyThemeToControls(taskbarTheme);
+      document.getElementById("autostartEnabled").checked = Boolean(autostart && !autostart.error && autostart.enabled);
+      status.textContent = "实时保存";
+    } catch (error) {
+      status.textContent = "设置读取失败";
+      status.classList.add("error");
+    }
+  }
+
+  function applyThemeToControls(theme) {
+    taskbarTheme = Object.assign({ enabled: true, show_title: true }, theme);
+    document.getElementById("taskbarEnabled").checked = Boolean(taskbarTheme.enabled);
+    document.getElementById("taskbarShowTitle").checked = Boolean(taskbarTheme.show_title);
+    document.getElementById("themePreset").value = themePresets[taskbarTheme.preset] ? taskbarTheme.preset : "custom";
+    document.getElementById("themeFontSize").value = taskbarTheme.font_size;
+    document.getElementById("themeFontSizeValue").textContent = taskbarTheme.font_size + "px";
+    document.getElementById("themeTextColor").value = taskbarTheme.text_color;
+    document.getElementById("themeTextColorValue").textContent = taskbarTheme.text_color.toUpperCase();
+    document.getElementById("themeTitleColor").value = taskbarTheme.title_color;
+    document.getElementById("themeTitleColorValue").textContent = taskbarTheme.title_color.toUpperCase();
+    document.getElementById("themeBackgroundColor").value = taskbarTheme.background_color;
+    document.getElementById("themeBackgroundColorValue").textContent = taskbarTheme.background_color.toUpperCase();
+    updateSegmentedButtons("font_weight", taskbarTheme.font_weight);
+    updateSegmentedButtons("effect", taskbarTheme.effect);
+    updateSegmentedButtons("background_mode", taskbarTheme.background_mode);
+    updateThemePreview();
+  }
+
+  function updateSegmentedButtons(key, value) {
+    document.querySelectorAll('[data-theme-key="' + key + '"]').forEach(button => {
+      button.setAttribute("aria-pressed", String(button.dataset.themeValue === value));
+    });
+  }
+
+  function updateThemePreview() {
+    if (!taskbarTheme) return;
+    const preview = document.getElementById("themePreview");
+    const shadow = taskbarTheme.effect === "none"
+      ? "none"
+      : taskbarTheme.effect === "shadow"
+        ? "2px 2px 0 #000"
+        : "1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000";
+    preview.style.setProperty("--preview-title", taskbarTheme.title_color);
+    preview.style.setProperty("--preview-text", taskbarTheme.text_color);
+    preview.style.setProperty("--preview-size", Math.max(14, taskbarTheme.font_size) + "px");
+    preview.style.setProperty("--preview-weight", taskbarTheme.font_weight === "bold" ? "700" : "400");
+    preview.style.setProperty("--preview-shadow", shadow);
+    preview.style.setProperty(
+      "--preview-background",
+      taskbarTheme.background_mode === "solid" ? taskbarTheme.background_color : "rgba(25, 29, 36, 0.6)"
+    );
+  }
+
+  function handleThemeControl(event) {
+    const control = event.target;
+    if (!taskbarTheme) return;
+    const key = control.dataset.themeControl;
+
+    if (key === "preset") {
+      if (themePresets[control.value]) {
+        taskbarTheme = Object.assign({}, taskbarTheme, themePresets[control.value]);
+      } else {
+        taskbarTheme.preset = "custom";
+      }
+    } else if (key) {
+      taskbarTheme[key] = control.type === "checkbox"
+        ? control.checked
+        : control.type === "range"
+          ? Number(control.value)
+          : control.value;
+      if (!["enabled", "show_title"].includes(key)) taskbarTheme.preset = "custom";
+    }
+
+    applyThemeToControls(taskbarTheme);
+    scheduleTaskbarThemeSave();
+  }
+
+  function handleSegmentClick(event) {
+    const button = event.currentTarget;
+    if (!taskbarTheme) return;
+    taskbarTheme[button.dataset.themeKey] = button.dataset.themeValue;
+    taskbarTheme.preset = "custom";
+    applyThemeToControls(taskbarTheme);
+    scheduleTaskbarThemeSave();
+  }
+
+  function scheduleTaskbarThemeSave() {
+    clearTimeout(themeSaveTimer);
+    document.getElementById("settingsSaveStatus").textContent = "保存中";
+    themeSaveTimer = setTimeout(saveTaskbarTheme, 180);
+  }
+
+  async function saveTaskbarTheme() {
+    if (!taskbarTheme) return;
+    try {
+      if (!await waitForApi()) {
+        document.getElementById("settingsSaveStatus").textContent = "预览模式";
+        return;
+      }
+      const result = await window.pywebview.api.set_taskbar_theme(taskbarTheme);
+      const status = document.getElementById("settingsSaveStatus");
+      if (result && result.error) throw new Error(result.error);
+      if (result && result.theme) taskbarTheme = result.theme;
+      status.textContent = "已保存";
+      status.classList.remove("error");
+    } catch (error) {
+      const status = document.getElementById("settingsSaveStatus");
+      status.textContent = "保存失败";
+      status.classList.add("error");
+    }
+  }
+
+  async function resetTaskbarTheme() {
+    try {
+      if (!await waitForApi()) {
+        applyThemeToControls(Object.assign({}, themePresets.clear, { enabled: true, show_title: true }));
+        document.getElementById("taskbarSaveStatus").textContent = "预览模式";
+        return;
+      }
+      const result = await window.pywebview.api.reset_taskbar_theme();
+      if (result && result.theme) {
+        applyThemeToControls(result.theme);
+        document.getElementById("taskbarSaveStatus").textContent = "已恢复默认";
+      }
+    } catch (error) {
+      document.getElementById("taskbarSaveStatus").textContent = "恢复失败";
+      document.getElementById("taskbarSaveStatus").classList.add("error");
+    }
+  }
+
+  async function handleAutostartControl(event) {
+    const control = event.target;
+    const requested = control.checked;
+    let restored = !requested;
+    const status = document.getElementById("settingsSaveStatus");
+    control.disabled = true;
+    status.textContent = "保存中";
+    status.classList.remove("error");
+    try {
+      if (!await waitForApi()) throw new Error("桌面接口不可用");
+      const result = await window.pywebview.api.set_autostart(requested);
+      if (result && typeof result.enabled === "boolean") restored = result.enabled;
+      if (!result || result.error) throw new Error(result && result.error ? result.error : "保存失败");
+      control.checked = Boolean(result.enabled);
+      status.textContent = "已保存";
+    } catch (error) {
+      control.checked = restored;
+      status.textContent = "保存失败";
+      status.classList.add("error");
+    } finally {
+      control.disabled = false;
+    }
+  }
+
   async function startSync() {
-    await waitForApi();
+    if (!await waitForApi()) return;
     tick();
   }
 
@@ -718,6 +1933,8 @@
       }
 
       setPlaybackState(data.is_playing ? "playing" : (lyrics.length ? "paused" : "idle"));
+      updatePlayPauseButton(Boolean(data.is_playing));
+      showSongInfo(data.title, data.artist, data.album, data.cover_url);
 
       if (userOffset === null && typeof data.user_offset === "number") {
         userOffset = data.user_offset;
@@ -728,7 +1945,6 @@
         lyrics = data.lyrics;
         lrcOffset = data.lrc_offset || 0;
         currentIndex = -1;
-        showSongInfo(data.title, data.artist);
         renderLyrics();
       }
 
@@ -750,11 +1966,71 @@
     syncTimer = setTimeout(tick, ms);
   }
 
-  function showSongInfo(title, artist) {
-    const info = document.getElementById("songInfo");
-    info.classList.remove("hidden");
+  function showSongInfo(title, artist, album = "", coverUrl = "") {
     document.getElementById("songTitle").textContent = title || "未知歌曲";
     document.getElementById("songArtist").textContent = artist || "未知歌手";
+    document.getElementById("songAlbum").textContent = album || "QQ 音乐";
+    setCoverArtwork(coverUrl || "");
+  }
+
+  function setCoverArtwork(url) {
+    const cover = document.getElementById("albumCover");
+    const backdrop = document.getElementById("albumBackdrop");
+    const frame = document.getElementById("coverFrame");
+    if (cover.dataset.source === url) return;
+    cover.dataset.source = url;
+    frame.classList.remove("has-cover");
+    backdrop.classList.remove("is-loaded");
+
+    if (!url) {
+      cover.removeAttribute("src");
+      backdrop.removeAttribute("src");
+      return;
+    }
+
+    cover.onload = () => frame.classList.add("has-cover");
+    cover.onerror = () => frame.classList.remove("has-cover");
+    backdrop.onload = () => backdrop.classList.add("is-loaded");
+    backdrop.onerror = () => backdrop.classList.remove("is-loaded");
+    cover.src = url;
+    backdrop.src = url;
+  }
+
+  function updatePlayPauseButton(isPlaying) {
+    const button = document.getElementById("playPauseButton");
+    const label = isPlaying ? "暂停" : "播放";
+    button.textContent = isPlaying ? "\u23F8" : "\u25B6";
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+    button.setAttribute("aria-pressed", String(isPlaying));
+  }
+
+  async function sendPlaybackAction(action, button = null, positionMs = null) {
+    const status = document.getElementById("controlStatus");
+    if (button) {
+      button.disabled = true;
+      button.dataset.state = "loading";
+    }
+    status.textContent = action === "seek" ? "定位中" : "控制中";
+    status.classList.remove("error");
+
+    try {
+      if (!await waitForApi()) throw new Error("桌面接口不可用");
+      const result = await window.pywebview.api.control_playback(action, positionMs);
+      if (!result || result.error) throw new Error(result && result.error ? result.error : "播放控制不可用");
+      if (button) button.dataset.state = "success";
+      status.textContent = "";
+      scheduleNext(120);
+    } catch (error) {
+      if (button) button.dataset.state = "error";
+      status.textContent = "控制失败";
+      status.classList.add("error");
+    } finally {
+      if (button) {
+        button.disabled = false;
+        setTimeout(() => button.removeAttribute("data-state"), 900);
+      }
+    }
   }
 
   function renderLyrics() {
@@ -795,16 +2071,35 @@
 
     if (currentIndex >= 0) {
       const activePair = document.getElementById("pair-" + currentIndex);
-      if (activePair) {
-        activePair.scrollIntoView({ behavior: "smooth", block: "center" });
+      const area = document.getElementById("lyricsArea");
+      if (activePair && area) {
+        // Keep lyric auto-scroll inside its own pane so a song change cannot move the card page.
+        const areaRect = area.getBoundingClientRect();
+        const pairRect = activePair.getBoundingClientRect();
+        const targetTop = area.scrollTop
+          + (pairRect.top - areaRect.top)
+          - (area.clientHeight - activePair.offsetHeight) / 2;
+        const maxTop = Math.max(0, area.scrollHeight - area.clientHeight);
+        area.scrollTo({
+          top: Math.max(0, Math.min(maxTop, targetTop)),
+          behavior: "smooth"
+        });
       }
     }
   }
 
   function updateProgress(posMs, durMs) {
-    if (!durMs || durMs <= 0) return;
+    const seek = document.getElementById("progressSeek");
+    if (!durMs || durMs <= 0) {
+      currentDurationMs = 0;
+      seek.value = 0;
+      seek.style.setProperty("--seek-progress", "0%");
+      return;
+    }
+    currentDurationMs = durMs;
     const pct = Math.max(0, Math.min(100, (posMs / durMs) * 100));
-    document.getElementById("progressFill").style.transform = "scaleX(" + (pct / 100) + ")";
+    if (!userSeeking) seek.value = pct;
+    seek.style.setProperty("--seek-progress", (userSeeking ? seek.value : pct) + "%");
     document.getElementById("posLabel").textContent = msToTime(posMs);
     document.getElementById("durLabel").textContent = msToTime(durMs);
   }
@@ -850,7 +2145,10 @@
     showSearchMessage("正在查找歌曲...");
 
     try {
-      await waitForApi();
+      if (!await waitForApi()) {
+        showSearchMessage("搜索需要桌面接口。", true);
+        return;
+      }
       const results = await window.pywebview.api.search(keyword);
       if (results && results.error) {
         showSearchMessage(results.error, true);
@@ -889,11 +2187,16 @@
     showSearchMessage("正在加载歌词...");
 
     try {
-      await waitForApi();
+      if (!await waitForApi()) {
+        showSearchMessage("歌词加载需要桌面接口。", true);
+        return;
+      }
       const data = await window.pywebview.api.load_lyrics(
         result.songmid,
         result.songname,
-        result.singer
+        result.singer,
+        result.albumname || "",
+        result.cover_url || ""
       );
 
       if (data && data.error) {
@@ -905,7 +2208,7 @@
         lyrics = data.lyrics;
         lrcOffset = data.lrc_offset || 0;
         currentIndex = -1;
-        showSongInfo(data.title, data.artist);
+        showSongInfo(data.title, data.artist, data.album, data.cover_url);
         document.getElementById("searchResults").classList.add("hidden");
         renderLyrics();
       }
@@ -935,10 +2238,48 @@
     }
   });
 
+  const progressSeek = document.getElementById("progressSeek");
+  progressSeek.addEventListener("pointerdown", () => {
+    userSeeking = true;
+  });
+  progressSeek.addEventListener("input", event => {
+    userSeeking = true;
+    const pct = Number(event.target.value);
+    event.target.style.setProperty("--seek-progress", pct + "%");
+    if (currentDurationMs > 0) {
+      document.getElementById("posLabel").textContent = msToTime(currentDurationMs * pct / 100);
+    }
+  });
+  progressSeek.addEventListener("change", event => {
+    const pct = Number(event.target.value);
+    const targetMs = currentDurationMs > 0 ? Math.round(currentDurationMs * pct / 100) : 0;
+    userSeeking = false;
+    if (currentDurationMs > 0) sendPlaybackAction("seek", null, targetMs);
+  });
+  progressSeek.addEventListener("pointerup", () => {
+    userSeeking = false;
+  });
+
   document.addEventListener("click", event => {
     if (!event.target.closest(".search-wrap")) {
       document.getElementById("searchResults").classList.add("hidden");
     }
+  });
+
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && settingsOpen) {
+      toggleSettings();
+    }
+  });
+
+  document.querySelectorAll("[data-theme-control]").forEach(control => {
+    control.addEventListener(control.type === "range" || control.type === "color" ? "input" : "change", handleThemeControl);
+  });
+  document.querySelectorAll("[data-theme-key]").forEach(button => {
+    button.addEventListener("click", handleSegmentClick);
+  });
+  document.querySelectorAll("[data-autostart-control]").forEach(control => {
+    control.addEventListener("change", handleAutostartControl);
   });
 
   startSync();

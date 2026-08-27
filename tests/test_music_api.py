@@ -18,6 +18,8 @@ def _make_api():
     api._current_lyrics = []
     api._current_title = ""
     api._current_artist = ""
+    api._current_album = ""
+    api._current_cover_url = ""
     api._lrc_offset = 0
     api._user_offset = 0
     api._last_keyword = ""
@@ -106,6 +108,47 @@ class TestErrorPaths(unittest.TestCase):
         with mock.patch.object(api_mod, "detect_qq_music_song", return_value="kw"), \
              mock.patch.object(api_mod, "search_song", return_value=None):
             self.assertEqual(api.detect_song()["error"], "搜索失败，请检查网络连接")
+
+
+class TestAutostart(unittest.TestCase):
+
+    def test_get_autostart_reads_registry_state(self):
+        api = _make_api()
+        with mock.patch.object(api_mod, "is_autostart_enabled", return_value=True):
+            self.assertEqual(api.get_autostart(), {"enabled": True})
+
+    def test_set_autostart_returns_effective_state(self):
+        api = _make_api()
+        with mock.patch.object(api_mod, "set_autostart", return_value=True) as setter, \
+             mock.patch.object(api_mod, "is_autostart_enabled", return_value=True):
+            result = api.set_autostart(True)
+        setter.assert_called_once_with(True)
+        self.assertEqual(result, {"ok": True, "enabled": True})
+
+    def test_set_autostart_reports_failure_and_restores_state(self):
+        api = _make_api()
+        with mock.patch.object(api_mod, "set_autostart", return_value=False), \
+             mock.patch.object(api_mod, "is_autostart_enabled", return_value=False):
+            result = api.set_autostart(True)
+        self.assertEqual(result, {"error": "开机自启动设置失败", "enabled": False})
+
+
+class TestPlaybackControls(unittest.TestCase):
+
+    def test_control_playback_passes_action(self):
+        api = _make_api()
+        with mock.patch.object(api_mod, "_control_playback", return_value=True) as control:
+            result = api.control_playback("next")
+        control.assert_called_once_with("next", None)
+        self.assertEqual(result, {"ok": True, "action": "next"})
+
+    def test_control_playback_rejects_unknown_action(self):
+        api = _make_api()
+        self.assertIn("error", api.control_playback("shuffle"))
+
+    def test_control_playback_seek_requires_position(self):
+        api = _make_api()
+        self.assertIn("error", api.control_playback("seek"))
 
 
 if __name__ == "__main__":

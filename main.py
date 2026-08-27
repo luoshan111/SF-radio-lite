@@ -29,6 +29,8 @@ logging.basicConfig(
 logger = logging.getLogger("bizhi")
 
 WIDGETS_DIR = ROOT / "widgets"
+MUSIC_WIDGET_WIDTH = 380
+MUSIC_WIDGET_HEIGHT = 720
 
 _quitting = False  # idempotency guard for _quit_now
 _tk_pump = {"timer": None}  # WinForms Timer driving WallpaperEngine.tick()
@@ -80,7 +82,7 @@ def main():
             logger.warning("Wallpaper disabled this session (injection failed). "
                            "Widgets and tray still work; use --no-wallpaper to skip silently.")
 
-    taskbar_lyrics = TaskbarLyrics()
+    taskbar_lyrics = TaskbarLyrics(config.get("taskbar_lyrics", {}))
     music_api = MusicApi(taskbar_lyrics=taskbar_lyrics,
                          initial_offset_ms=config.get("music_offset_ms", 0))
 
@@ -89,11 +91,11 @@ def main():
 
     music_win = create_widget(
         name="music",
-        title="QQ音乐歌词",
+        title="QQ 音乐歌词",
         html_path=str(WIDGETS_DIR / "music" / "index.html"),
         js_api=music_api,
-        width=360,
-        height=580,
+        width=MUSIC_WIDGET_WIDTH,
+        height=MUSIC_WIDGET_HEIGHT,
         x=music_pos.get("x", 1480),
         y=music_pos.get("y", 100),
     )

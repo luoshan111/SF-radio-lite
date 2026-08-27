@@ -24,6 +24,14 @@ HEADERS = {
 }
 
 
+def album_cover_url(albummid: str, size: int = 500) -> str:
+    """Build QQ Music's stable album artwork URL for an album mid."""
+    if not albummid:
+        return ""
+    safe_size = max(100, min(500, int(size)))
+    return f"https://y.gtimg.cn/music/photo_new/T002R{safe_size}x{safe_size}M000{albummid}.jpg?max_age=2592000"
+
+
 def _run_async(coro, timeout: float = 5.0):
     """Run a coroutine from a possibly-busy thread.
 
@@ -66,11 +74,17 @@ def search_song(keyword: str, limit: int = 5):
             singers = "/".join(
                 si.get("name", "") for si in s.get("singer", [])
             )
+            album = s.get("album", {})
+            if not isinstance(album, dict):
+                album = {}
+            albummid = album.get("mid", s.get("albummid", ""))
             results.append({
                 "songmid": s.get("mid", s.get("songmid", "")),
                 "songname": s.get("name", s.get("songname", s.get("title", ""))),
                 "singer": singers,
-                "albumname": s.get("album", {}).get("name", s.get("albumname", "")),
+                "albumname": album.get("name", s.get("albumname", "")),
+                "albummid": albummid,
+                "cover_url": album_cover_url(albummid),
                 "interval": s.get("interval", 0),
             })
         return results
@@ -137,7 +151,7 @@ def parse_lrc(lrc_text: str) -> tuple:
 def get_playback_status() -> Optional[dict]:
     """Query the current SMTC media session (single source of truth).
 
-    Returns {title, artist, app_id, position_ms, duration_ms, is_playing}
+    Returns {title, artist, album, app_id, position_ms, duration_ms, is_playing}
     or None when no session is available / SMTC is unsupported.
     """
     try:
@@ -156,6 +170,7 @@ def get_playback_status() -> Optional[dict]:
             return {
                 "title": props.title or "",
                 "artist": props.artist or "",
+                "album": props.album_title or "",
                 "app_id": session.source_app_user_model_id or "",
                 "position_ms": int(timeline.position.total_seconds() * 1000),
                 "duration_ms": int(timeline.end_time.total_seconds() * 1000),
@@ -169,6 +184,47 @@ def get_playback_status() -> Optional[dict]:
     except Exception as e:
         logger.debug(f"SMTC status failed: {e}")
         return None
+
+
+def control_playback(action: str, position_ms: Optional[int] = None) -> bool:
+    """Send a playback command to the current Windows media session."""
+    actions = {
+        "toggle": "try_toggle_play_pause_async",
+        "play": "try_play_async",
+        "pause": "try_pause_async",
+        "previous": "try_skip_previous_async",
+        "next": "try_skip_next_async",
+    }
+    try:
+        from winsdk.windows.media.control import (
+            GlobalSystemMediaTransportControlsSessionManager
+        )
+
+        async def _control():
+            manager = await GlobalSystemMediaTransportControlsSessionManager.request_async()
+            session = manager.get_current_session()
+            if not session:
+                return False
+            if action == "seek":
+                if position_ms is None:
+                    return False
+                result = await session.try_change_playback_position_async(
+                    max(0, int(position_ms)) * 10000
+                )
+            else:
+                method_name = actions.get(action)
+                if not method_name:
+                    return False
+                result = await getattr(session, method_name)()
+            return bool(result)
+
+        return bool(_run_async(_control(), timeout=5))
+    except ImportError:
+        logger.debug("winsdk not available, playback controls disabled")
+        return False
+    except Exception as e:
+        logger.debug(f"Playback control failed ({action}): {e}")
+        return False
 
 
 def _detect_via_smtc() -> Optional[dict]:

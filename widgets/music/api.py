@@ -10,8 +10,10 @@ from typing import Optional
 
 from widgets.music.qq_music import (
     search_song, get_lyrics, parse_lrc, detect_qq_music_song,
-    get_playback_status as _smtc_status,
+    get_playback_status as _smtc_status, control_playback as _control_playback,
 )
+from core.taskbar_lyrics import TASKBAR_THEME_DEFAULTS, normalize_theme
+from core.tray import is_autostart_enabled, set_autostart
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +56,8 @@ class MusicApi:
         self._current_lyrics = []
         self._current_title = ""
         self._current_artist = ""
+        self._current_album = ""
+        self._current_cover_url = ""
         self._auto_detect = False
         self._detect_thread = None
         self._last_keyword = ""
@@ -79,7 +83,8 @@ class MusicApi:
             return {"error": "未找到相关歌曲"}
         return results
 
-    def load_lyrics(self, songmid: str, songname: str = "", singer: str = ""):
+    def load_lyrics(self, songmid: str, songname: str = "", singer: str = "",
+                    albumname: str = "", cover_url: str = ""):
         lyrics_data = get_lyrics(songmid)
         if not lyrics_data:
             return {"error": "获取歌词失败（该歌曲可能没有歌词或网络异常）"}
@@ -92,11 +97,15 @@ class MusicApi:
         self._current_lyrics = merged
         self._current_title = songname
         self._current_artist = singer
+        self._current_album = albumname
+        self._current_cover_url = cover_url
         self._current_song = songmid
         self._lrc_offset = lrc_offset
         return {
             "title": songname,
             "artist": singer,
+            "album": albumname,
+            "cover_url": cover_url,
             "lyrics": merged,
             "lrc_offset": lrc_offset,
         }
@@ -105,6 +114,8 @@ class MusicApi:
         return {
             "title": self._current_title,
             "artist": self._current_artist,
+            "album": self._current_album,
+            "cover_url": self._current_cover_url,
             "lyrics": self._current_lyrics,
             "songmid": self._current_song,
         }
@@ -147,11 +158,18 @@ class MusicApi:
             results = search_song(keyword, limit=1)
             if results:
                 song = results[0]
-                self.load_lyrics(song["songmid"], song["songname"], song["singer"])
+                self.load_lyrics(
+                    song["songmid"], song["songname"], song["singer"],
+                    song.get("albumname", ""), song.get("cover_url", ""),
+                )
                 status["title"] = song["songname"]
                 status["artist"] = song["singer"]
+                status["album"] = song.get("albumname", "")
+                status["cover_url"] = song.get("cover_url", "")
 
         status["lyrics"] = self._current_lyrics
+        status.setdefault("album", getattr(self, "_current_album", ""))
+        status.setdefault("cover_url", getattr(self, "_current_cover_url", ""))
         status["song_changed"] = song_changed
         status["lrc_offset"] = self._lrc_offset
         status["user_offset"] = self._user_offset
@@ -172,6 +190,52 @@ class MusicApi:
             logger.debug(f"Failed to persist offset: {e}")
         return {"ok": True, "user_offset": offset_ms}
 
+    def control_playback(self, action: str, position_ms: Optional[int] = None):
+        """Send a playback action and return a stable JS-friendly result."""
+        allowed = {"toggle", "play", "pause", "previous", "next", "seek"}
+        if action not in allowed:
+            return {"error": "不支持的播放操作"}
+        if action == "seek" and position_ms is None:
+            return {"error": "缺少定位时间"}
+        ok = _control_playback(action, position_ms)
+        return {"ok": ok, "action": action} if ok else {"error": "播放控制不可用", "action": action}
+
+    def get_taskbar_theme(self):
+        if not self._taskbar_lyrics:
+            return normalize_theme()
+        return self._taskbar_lyrics.get_theme()
+
+    def set_taskbar_theme(self, theme):
+        normalized = normalize_theme(theme)
+        if self._taskbar_lyrics:
+            normalized = self._taskbar_lyrics.apply_theme(normalized)
+        try:
+            from core.config import load_config, save_config
+            cfg = load_config()
+            cfg["taskbar_lyrics"] = normalized
+            save_config(cfg)
+        except Exception as e:
+            logger.debug(f"Failed to persist taskbar theme: {e}")
+            return {"error": "任务栏样式保存失败"}
+        return {"ok": True, "theme": normalized}
+
+    def reset_taskbar_theme(self):
+        return self.set_taskbar_theme(TASKBAR_THEME_DEFAULTS)
+
+    def get_autostart(self):
+        """Return whether BIZHI starts with the current Windows user."""
+        return {"enabled": is_autostart_enabled()}
+
+    def set_autostart(self, enabled: bool):
+        """Toggle the current user's Windows startup registration."""
+        requested = bool(enabled)
+        if not set_autostart(requested):
+            return {
+                "error": "开机自启动设置失败",
+                "enabled": is_autostart_enabled(),
+            }
+        return {"ok": True, "enabled": is_autostart_enabled()}
+
     # ── Legacy detect ──
 
     def detect_song(self):
@@ -184,7 +248,10 @@ class MusicApi:
         if not results:
             return {"error": f"未找到匹配歌曲: {keyword}"}
         song = results[0]
-        return self.load_lyrics(song["songmid"], song["songname"], song["singer"])
+        return self.load_lyrics(
+            song["songmid"], song["songname"], song["singer"],
+            song.get("albumname", ""), song.get("cover_url", ""),
+        )
 
     def start_auto_detect(self):
         self._auto_detect = True
