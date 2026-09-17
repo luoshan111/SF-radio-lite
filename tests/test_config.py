@@ -26,7 +26,7 @@ class ConfigTestCase(unittest.TestCase):
         self.assertEqual(c["music_offset_ms"], 0)
         self.assertEqual(c["widgets"]["music"]["x"], 1480)
         self.assertEqual(c["widgets"]["music"]["y"], 100)
-        self.assertIsNone(c["wallpaper"]["type"])
+        self.assertTrue(c["taskbar_lyrics"]["enabled"])
 
     def test_deep_copy_of_defaults(self):
         c1 = cfg.load_config()
@@ -37,12 +37,12 @@ class ConfigTestCase(unittest.TestCase):
     def test_round_trip(self):
         c = cfg.load_config()
         c["music_offset_ms"] = -500
-        c["wallpaper"] = {"type": "gif", "path": "C:/x/a.gif", "color": ""}
+        c["taskbar_lyrics"]["preset"] = "ice"
         c["widgets"]["music"] = {"x": 11, "y": 22}
         cfg.save_config(c)
         c2 = cfg.load_config()
         self.assertEqual(c2["music_offset_ms"], -500)
-        self.assertEqual(c2["wallpaper"]["type"], "gif")
+        self.assertEqual(c2["taskbar_lyrics"]["preset"], "ice")
         self.assertEqual(c2["widgets"]["music"]["x"], 11)
 
     def test_corrupt_file_falls_back_to_defaults(self):

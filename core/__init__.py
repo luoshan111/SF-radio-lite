@@ -1,1 +1,1 @@
-﻿"""Core package for BIZHI wallpaper engine."""
+﻿"""Core package for BIZHI."""

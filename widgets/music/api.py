@@ -64,7 +64,7 @@ class MusicApi:
         self._lrc_offset = 0
         self._user_offset = initial_offset_ms
         self._window = None
-        self._cached_lyric_text = "BIZHI - 动态壁纸"
+        self._cached_lyric_text = "BIZHI"
         self._taskbar_lyrics = taskbar_lyrics
         self._bg_thread = None
         self._bg_running = False
@@ -325,7 +325,7 @@ class MusicApi:
         if current_text:
             self._cached_lyric_text = f"♫ {song_part}\n{current_text}" if song_part else current_text
         else:
-            self._cached_lyric_text = f"♫ {song_part}" if song_part else "BIZHI - 动态壁纸"
+            self._cached_lyric_text = f"♫ {song_part}" if song_part else "BIZHI"
 
         # Push to taskbar lyrics overlay
         if self._taskbar_lyrics:

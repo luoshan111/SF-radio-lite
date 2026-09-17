@@ -1,4 +1,4 @@
-"""System tray integration for BIZHI wallpaper engine."""
+"""System tray integration for BIZHI."""
 
 import sys
 import winreg
@@ -72,9 +72,8 @@ def _create_icon_image(size=64):
 class TrayManager:
     """Manages the system tray icon and menu."""
 
-    def __init__(self, on_change_wallpaper=None, on_show_all=None,
+    def __init__(self, on_show_all=None,
                  on_settings=None, on_quit=None, music_api=None):
-        self._on_change_wallpaper = on_change_wallpaper
         self._on_show_all = on_show_all
         self._on_settings = on_settings
         self._on_quit = on_quit
@@ -92,10 +91,6 @@ class TrayManager:
             pystray.MenuItem(
                 "显示窗口",
                 self._on_show_all if self._on_show_all else lambda: None,
-            ),
-            pystray.MenuItem(
-                "更换壁纸",
-                self._on_change_wallpaper if self._on_change_wallpaper else lambda: None,
             ),
             pystray.MenuItem(
                 "开机自启",
@@ -132,7 +127,7 @@ class TrayManager:
         self._icon = pystray.Icon(
             name="BIZHI",
             icon=icon_image,
-            title="BIZHI - 动态壁纸",
+            title="BIZHI - 桌面歌词",
             menu=self._build_menu(),
         )
         # Run in a separate thread so it doesn't block

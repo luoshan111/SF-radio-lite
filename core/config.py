@@ -25,7 +25,6 @@ def _data_dir() -> Path:
 CONFIG_FILE = _data_dir() / "config.json"
 
 DEFAULTS = {
-    "wallpaper": {"type": None, "path": "", "color": ""},
     "widgets": {
         "music": {"x": 1480, "y": 100},
     },

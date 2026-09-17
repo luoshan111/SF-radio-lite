@@ -25,7 +25,6 @@ a = Analysis(
         "webview.platforms.winforms",
         "clr",  # pythonnet (WinForms backend)
         "pystray._win32",
-        "PIL._tkinter_finder",  # ImageTk support
     ],
     hookspath=[],
     hooksconfig={},

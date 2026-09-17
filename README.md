@@ -1,136 +1,179 @@
-# BIZHI - 轻量级动态壁纸 & 桌面组件
+# BIZHI
 
-适用于 Windows 11 的轻量级动态壁纸软件，支持自定义桌面组件。
+Windows 11 上的 **QQ音乐桌面歌词挂件**：桌面上悬浮一张歌词卡片，同时把歌词画到任务栏左侧。
 
-## ✨ 功能
+> 说明：旧版本的「动态壁纸」功能已整体移除，现在只保留歌词挂件与任务栏歌词。
 
-- **动态壁纸** — 支持静态图片、GIF 动画、渐变色和纯色背景（注入桌面图标层 WorkerW）
-- **QQ音乐音乐卡片** — 封面、歌曲信息、实时歌词、原词+翻译、播放/暂停、上一首/下一首和进度定位，通过 Windows SMTC 自动同步
-- **任务栏歌词** — 歌词直接嵌入任务栏显示，支持字体、颜色、描边、阴影和背景主题实时调整
-- **系统托盘** — 最小化到托盘，快捷更换壁纸、开机自启
+## 功能
 
-## 📦 安装
+- **歌词卡片挂件** — 封面、歌名/歌手、逐行歌词、原文+翻译、播放/暂停、上一首/下一首、进度拖动
+- **自动识别播放** — 通过 Windows 媒体会话（SMTC）自动同步正在播放的歌曲，无需手动搜索
+- **任务栏歌词** — 歌词直接显示在任务栏左侧，字体/颜色/描边/背景可实时调整
+- **系统托盘** — 显示窗口、开机自启、退出
 
-```bash
-pip install -r requirements.txt
+## 运行环境
+
+| 项目 | 要求 |
+|------|------|
+| 系统 | Windows 10/11（Win11 体验最佳） |
+| Python | **3.12**（官方解释器，见下方安装步骤） |
+| WebView2 | Win11 已内置；Win10 首次运行会提示安装 |
+
+## 安装
+
+### 第 1 步：装 Python 3.12
+
+打开 PowerShell，执行：
+
+```powershell
+winget install -e --id Python.Python.3.12 --scope user
 ```
 
-## 🚀 使用
+装完后重开一个 PowerShell，确认：
 
-```bash
-# 默认启动（恢复上次壁纸或渐变壁纸 + 歌词组件）
-python main.py
-
-# 指定壁纸图片
-python main.py --wallpaper path/to/image.png
-
-# GIF 动画壁纸
-python main.py --wallpaper path/to/animation.gif
-
-# 纯色壁纸
-python main.py --color "#1a1a2e"
-
-# 仅启动组件（不更换壁纸）
-python main.py --no-wallpaper
+```powershell
+python --version
 ```
 
-启动后壁纸类型、组件位置、歌词延迟和任务栏歌词主题都会持久化到 `data/config.json`，下次启动自动恢复。
+显示 `Python 3.12.x` 即可。若提示找不到 `python`，说明没加入 PATH，用完整路径 `%LOCALAPPDATA%\Programs\Python\Python312\python.exe` 代替下文的 `python`。
 
-## 📁 项目结构
+### 第 2 步：装依赖
 
-```
-BIZHI/
-├── main.py                    # 主入口
-├── requirements.txt           # Python 依赖
-├── bizhi.spec                 # PyInstaller 打包配置
-├── core/
-│   ├── desktop.py             # Windows WorkerW 桌面注入 / 文件对话框 / DPI
-│   ├── wallpaper.py           # 壁纸渲染引擎（图片/GIF/渐变/纯色）
-│   ├── taskbar_lyrics.py      # 任务栏歌词组件
-│   ├── tray.py                # 系统托盘（含开机自启）
-│   └── config.py              # 配置持久化
-├── widgets/
-│   ├── manager.py             # 组件窗口管理器
-│   └── music/
-│       ├── api.py             # 歌词与播放控制后端（SMTC 同步）
-│       ├── qq_music.py        # QQ音乐 API / 封面 / SMTC 客户端
-│       └── index.html         # 音乐卡片与歌词前端 UI
-├── tests/                     # unittest 测试（python -m unittest discover -s tests）
-├── assets/
-│   └── icons/                 # 图标资源
-└── data/                      # 运行时数据（已 gitignore）
-    └── config.json            # 配置（壁纸/窗口位置/歌词延迟）
+```powershell
+cd D:\code\SF-radio-lite
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-## 🛠️ 技术栈
+所有依赖只装在项目里的 `.venv` 文件夹，不会动系统 Python。想彻底卸载，删掉 `.venv` 即可。
 
-- **Python** — 主语言
-- **tkinter** — 壁纸渲染层（轻量、内置）
-- **pywebview** — 组件 UI（基于 WebView2，Win11 原生）
-- **pystray** — 系统托盘
-- **Pillow** — 图像处理
-- **winsdk** — Windows SMTC（媒体播放检测，缺失时降级为窗口标题检测）
-- **Windows API (ctypes)** — WorkerW 桌面注入
+### 第 3 步：启动
 
-## 🎵 任务栏歌词配置
+```powershell
+.\.venv\Scripts\python.exe main.py
+```
 
-歌词默认显示在任务栏左侧，采用高对比描边文字。打开歌词挂件右上角的齿轮，在“任务栏样式”子 Tab 中可以实时调整：
+或者直接双击项目里的 **`BIZHI.bat`**（它内部就是用 `.venv` 启动，出错时会停住显示报错）。
 
-- 任务栏歌词开关、是否显示歌曲名
-- 清晰浅色、暖金高亮、冰蓝清透、深色高对比预设
-- 字号、字重、歌词颜色、歌曲名颜色
-- 无背景或深色背景，以及无效果、阴影、描边
+## 启动后你会看到
 
-设置会立即应用并保存到 `data/config.json`，无需编辑源码或重启。
+1. 桌面右上角出现一张歌词卡片挂件（无边框、置顶、可拖动）
+2. 任务栏左侧出现当前歌词（默认开启）
+3. 右下角托盘出现 BIZHI 图标（可能在 `^` 折叠区里）
 
-任务栏歌词默认宽度为 520px。如果你的任务栏较满（固定了很多应用），歌词可能和应用按钮重叠，需要调整 `_run()` 中的定位值：
+启动 QQ音乐播放任意歌曲，卡片会自动显示歌曲信息与歌词。
+
+## 使用说明
+
+### 卡片挂件
+
+| 操作 | 位置 |
+|------|------|
+| 拖动挂件 | 按住卡片顶部标题区域拖 |
+| 打开设置 | 右上角齿轮 ⚙ |
+| 最小化 | 右上角 `−`（仅隐藏，程序仍在托盘运行） |
+| 搜索歌曲 | 卡片内搜索框输入歌名后选择 |
+| 手动播放控制 | 封面下方的播放/上一首/下一首/进度条 |
+
+### 设置面板（齿轮 ⚙）
+
+- **常规** 页：任务栏歌词开关、开机自启动开关、歌词偏移
+- **任务栏样式** 页：预设（清晰浅色 / 暖金高亮 / 冰蓝清透 / 深色高对比）、字号、字重、歌词与歌曲名颜色、无效果/阴影/描边、透明或深色背景
+
+所有设置即时生效，并自动保存到配置文件。
+
+### 托盘菜单（右键 BIZHI 图标）
+
+- **显示窗口** — 把隐藏的挂件重新显示出来
+- **开机自启** — 勾选后随 Windows 登录自动启动
+- **退出** — 完全退出程序
+
+## 配置文件
+
+| 运行方式 | 配置位置 |
+|----------|----------|
+| 源码运行 | `D:\code\SF-radio-lite\data\config.json` |
+| 打包 exe | `%APPDATA%\BIZHI\data\config.json` |
+
+保存内容：挂件位置、歌词偏移、任务栏歌词主题。删掉该文件即可恢复全部默认值。该文件不会被提交到 git。
+
+## 任务栏歌词位置不对？
+
+任务栏歌词是画在任务栏上的一个透明窗口，位置写死在 `core/taskbar_lyrics.py` 的 `_run()` 里，找到这 4 行：
 
 ```python
 lyric_w = min(520, w // 3)   # 歌词区域宽度（像素）
-lyric_h = h - 4              # 歌词区域高度（比任务栏矮 4px，留出边距）
-lx = bar.left + 80           # 水平偏移：距任务栏左边缘 80px
-ly = bar.top + 2             # 垂直偏移：比任务栏顶部低 2px
+lyric_h = h - 4              # 高度（比任务栏矮 4px，留边距）
+lx = bar.left + 80           # 左边缘偏移：距任务栏最左侧 80px
+ly = bar.top + 2             # 上边缘偏移：比任务栏顶部低 2px
 ```
 
-### 常用调整场景
+常见改法：
 
-| 场景 | 修改 |
-|------|------|
-| 歌词和应用按钮重叠 | 增大 `lx` 的末尾数字（如 `80` → `200`），向右移动 |
-| 歌词太窄/太宽 | 修改 `400`（如 `300` 或 `500`） |
-| 歌词位置偏上/偏下 | 调整 `ly` 的 `+2` 偏移量 |
-| 任务栏在屏幕顶部 | 将 `ly` 改为 `bar.bottom + offset` |
+| 现象 | 怎么改 |
+|------|--------|
+| 歌词和左侧应用图标重叠 | 把 `lx` 的 `80` 改大，例如 `200` |
+| 歌词太窄 / 太宽 | 改 `min(520, w // 3)` 里的 `520` |
+| 歌词偏上 / 偏下 | 调 `ly` 的 `+2` |
+| 任务栏在屏幕顶部 | 把 `ly` 改成 `bar.bottom + 偏移` |
 
-调整后重启 `python main.py` 生效。
+改完重新启动程序生效。
 
-## 🧪 测试
+## 测试
 
-```bash
-python -m unittest discover -s tests -v
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-覆盖：LRC 解析、原词/翻译合并、搜索与歌词 API 错误路径、SMTC 同步去重、配置持久化、退出幂等、托盘换壁纸流程、GIF 动画帧时长等。
+覆盖：LRC 解析、原文/翻译合并、搜索与歌词接口错误路径、SMTC 同步去重、配置持久化、退出幂等、任务栏主题校验。
 
-## 📦 打包发布
+## 打包成 exe
 
-```bash
-pip install pyinstaller
-pyinstaller bizhi.spec --noconfirm
+```powershell
+.\.venv\Scripts\python.exe -m pip install pyinstaller
+.\.venv\Scripts\python.exe -m PyInstaller bizhi.spec --noconfirm
 ```
 
-产物在 `dist/BIZHI/`（onedir 模式）。打包版的数据（配置/待办）保存在 `%APPDATA%/BIZHI/`。
+产物：`dist\BIZHI\BIZHI.exe`（onedir 模式）。打包版的数据目录是 `%APPDATA%\BIZHI\`。
 
-## 🚀 快速启动
+## 目录结构
 
-**桌面快捷方式：** 双击桌面上的 `BIZHI` 图标即可启动。开机自启动可在歌词挂件的“设置 → 常规”中开启，也可通过托盘菜单切换。
+```
+SF-radio-lite/
+├── main.py                     # 程序入口：启动歌词组件、托盘、事件循环
+├── BIZHI.bat                   # 一键启动脚本（使用 .venv）
+├── requirements.txt            # Python 依赖
+├── bizhi.spec                  # PyInstaller 打包配置
+├── core/
+│   ├── config.py               # 配置读写（data/config.json）
+│   ├── desktop.py              # Windows DPI 适配
+│   ├── taskbar_lyrics.py       # 任务栏歌词窗口
+│   └── tray.py                 # 系统托盘 + 开机自启
+├── widgets/
+│   ├── manager.py              # pywebview 窗口管理
+│   └── music/
+│       ├── api.py              # 暴露给网页的 Python 接口
+│       ├── qq_music.py         # QQ音乐搜索 / 封面 / SMTC 客户端
+│       └── index.html          # 卡片界面（HTML/CSS/JS）
+├── assets/icons/               # 图标资源
+├── tests/                      # 单元测试
+└── data/                       # 运行时数据（已 gitignore）
+```
 
-**命令行：** 直接运行 `D:\code\BIZHI\BIZHI.bat`
+## 技术栈
 
-## 📝 注意事项
+Python 3.12 · pywebview（WebView2）· pystray（托盘）· Pillow（图标）· winsdk（SMTC 媒体检测）· tkinter（任务栏歌词绘制）· ctypes（Win32 API）
 
-- 需要 Windows 10/11 系统
-- 首次运行会安装 WebView2 运行时（Win11 已内置）
-- QQ音乐歌词功能需要网络连接
-- 壁纸注入依赖非文档化 Win32 技巧（`core/desktop.py`），个别 Windows 版本可能失败——失败时壁纸窗口会自动隐藏，程序其余功能不受影响
-- 组件窗口可通过拖拽标题栏移动
-- 右键系统托盘图标可退出程序
+## 常见问题
+
+- **双击 `BIZHI.bat` 没反应/闪退** — 脚本会在出错时暂停并显示报错；若仍无输出，改成命令行运行 `.\.venv\Scripts\python.exe main.py` 查看日志。
+- **歌词不动** — 需要 QQ音乐/系统媒体会话正在播放；缺少 `winsdk` 时会降级为窗口标题检测，效果较差。
+- **任务栏看不到歌词** — 检查齿轮 →「任务栏歌词」是否开启；重启过资源管理器（explorer.exe）后需重启本程序。
+- **托盘图标找不到** — Win11 默认折叠到 `^` 里，拖出来固定即可。
+- **播放/暂停按钮无效** — 依赖 SMTC 控制通道，个别播放器不支持回控。
+
+## 已知限制
+
+- 仅支持 Windows 系统。
+- 歌曲识别依赖 Windows 媒体会话，非 QQ音乐客户端（如浏览器网页播放）可能识别不到。
+- 歌词数据来自 QQ音乐公开接口，需要联网。

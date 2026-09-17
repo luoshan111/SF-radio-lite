@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 _widgets = {}  # name -> window ref
 _quitting = False
 
+ICON_PATH = Path(__file__).resolve().parent.parent / "assets" / "icons" / "bizhi.ico"
+
 
 def create_widget(name: str, title: str, html_path: str, js_api=None,
                   width: int = 360, height: int = 500, x: int = 100, y: int = 100,
@@ -145,4 +147,5 @@ def start_widgets(func=None):
     func, if given, is invoked on the UI thread once the loop is running.
     """
     logger.info("Starting webview event loop")
-    webview.start(debug=False, func=func)
+    icon = str(ICON_PATH) if ICON_PATH.exists() else None
+    webview.start(debug=False, func=func, icon=icon)
