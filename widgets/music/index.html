@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-motion="on">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -57,6 +57,35 @@
     --dur-micro: 120ms;
     --dur-short: 220ms;
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* ── 动效 token：每个组件一个变量，动画规则只引用自己的变量；
+     总开关 <html data-motion="off"> 把全部 token 归零，组件代码无需感知。
+     曲线与时长对齐 iOS：淡入 + 轻缩放浮现（fade-through），微交互带轻微回弹 ── */
+  :root {
+    --motion-panel: 380ms;
+    --motion-panel-ease: cubic-bezier(0.32, 0.72, 0, 1);
+    --motion-leave: 170ms;
+    --motion-lyrics: 280ms;
+    --motion-row: 140ms;
+    --motion-row-press: cubic-bezier(0.34, 1.3, 0.5, 1);
+    --motion-marker: 2.4s;
+    --motion-cover: 420ms;
+    --motion-settings: 260ms;
+    --motion-knob: 300ms cubic-bezier(0.34, 1.45, 0.5, 1);
+  }
+
+  :root[data-motion="off"] {
+    --motion-panel: 0s;
+    --motion-panel-ease: linear;
+    --motion-leave: 0s;
+    --motion-lyrics: 0s;
+    --motion-row: 0s;
+    --motion-row-press: linear;
+    --motion-marker: 0s;
+    --motion-cover: 0s;
+    --motion-settings: 0s;
+    --motion-knob: 0s linear;
   }
 
   html,
@@ -124,13 +153,15 @@
     width: 28px;
     height: 28px;
     flex: 0 0 28px;
-    border: 1px solid rgba(240, 179, 90, 0.28);
-    border-radius: 7px;
-    background: var(--accent-soft);
-    color: var(--accent);
-    font-family: "Segoe UI Symbol", sans-serif;
-    font-size: 17px;
-    line-height: 1;
+    overflow: hidden;
+    border-radius: 6px;
+  }
+
+  .brand-mark img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .brand-copy {
@@ -486,7 +517,7 @@
     border-radius: 50%;
     background: #d5dae2;
     content: "";
-    transition: transform var(--ease), background-color var(--ease);
+    transition: transform var(--motion-knob), background-color var(--ease);
   }
 
   .toggle input:checked + .toggle-track {
@@ -695,18 +726,15 @@
     opacity: 0.62;
   }
 
+  /* 内容视图统一钉在第 2 行：淡出/浮现交叉时不会互相推挤 */
+  .lyrics-area, .playlist-panel, .search-results { grid-row: 2; }
+
+  /* 搜索结果：与歌词/歌单并列的内容视图（不再是浮动下拉层） */
   .search-results {
-    position: absolute;
-    top: calc(100% + 7px);
-    right: 0;
-    left: 0;
-    max-height: 180px;
+    min-height: 0;
     overflow-y: auto;
-    padding: 5px;
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    background: rgba(29, 32, 39, 0.985);
-    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.38);
+    padding: 6px 10px 10px;
+    overscroll-behavior: contain;
   }
 
   .search-results.hidden {
@@ -798,7 +826,8 @@
   .lyric-pair {
     padding: 8px 0;
     text-align: center;
-    transition: opacity 240ms ease, transform 240ms ease;
+    transition: opacity var(--motion-lyrics) ease, transform var(--motion-lyrics) ease,
+                filter var(--motion-lyrics) ease;
   }
 
   .lyric-line {
@@ -807,7 +836,7 @@
     font-weight: 500;
     line-height: 1.55;
     overflow-wrap: anywhere;
-    transition: color 240ms ease, font-weight 240ms ease;
+    transition: color var(--motion-lyrics) ease, font-weight var(--motion-lyrics) ease;
   }
 
   .lyric-trans {
@@ -816,11 +845,12 @@
     font-size: 11px;
     line-height: 1.45;
     overflow-wrap: anywhere;
-    transition: color 240ms ease;
+    transition: color var(--motion-lyrics) ease;
   }
 
   .lyric-pair.past {
-    opacity: 0.42;
+    opacity: 0.4;
+    filter: blur(0.8px);
   }
 
   .lyric-pair.active {
@@ -1008,7 +1038,7 @@
     object-fit: cover;
     filter: blur(28px) saturate(0.9);
     transform: scale(1.12);
-    transition: opacity var(--dur-short) var(--ease-out);
+    transition: opacity var(--motion-cover) var(--ease-out);
   }
 
   .artwork-backdrop img.is-loaded {
@@ -1056,7 +1086,7 @@
     opacity: 0;
     object-fit: cover;
     transform: scale(1.015);
-    transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out);
+    transition: opacity var(--motion-cover) var(--ease-out), transform var(--motion-cover) var(--ease-out);
   }
 
   .cover-frame.has-cover .cover-image {
@@ -1429,6 +1459,97 @@
       display: none;
     }
   }
+  .content-tabs { display: flex; gap: 4px; }
+  .content-tab {
+    border: 0; border-radius: 5px; padding: 5px 9px;
+    background: transparent; color: var(--text-muted); cursor: pointer;
+    font-size: 12px;
+  }
+  .content-tab[aria-selected="true"] { color: var(--accent); background: var(--accent-soft); }
+  .content-tab:focus-visible, .playlist-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .lyrics-section.queue-open .lyrics-area, .lyrics-section.queue-open .lyrics-mode { display: none; }
+  .playlist-panel {
+    display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto;
+    min-height: 0; padding: 0 14px 10px; gap: 8px;
+  }
+  .playlist-panel.hidden { display: none; }
+  .playlist-toolbar, .playlist-pagination { display: flex; align-items: center; gap: 8px; }
+  .playlist-toolbar .playlist-count { flex: 1; font-size: 11px; color: var(--text-secondary); }
+  .playlist-toolbar button, .playlist-pagination button {
+    padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px;
+    background: var(--surface-raised); color: var(--text-secondary); font-size: 11px; cursor: pointer;
+  }
+  .playlist-toolbar button:hover, .playlist-pagination button:hover { color: var(--accent); }
+  .playlist-panel button:disabled { opacity: .45; cursor: wait; }
+  .playlist-message { margin: 0; color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+  .playlist-message.error { color: var(--danger); }
+  .playlist-items { overflow-y: auto; min-height: 0; scrollbar-width: thin; scrollbar-color: #493b2a transparent; }
+  .playlist-row {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px;
+    width: 100%; padding: 10px 9px; text-align: left; border: 0;
+    border-bottom: 1px solid var(--border); border-radius: 5px;
+    background: transparent; cursor: pointer;
+    transition: background var(--motion-row) ease, transform var(--motion-row-press) 140ms;
+  }
+  .playlist-row:hover { background: var(--surface-hover); }
+  .playlist-row:active { transform: scale(0.98); }
+  .playlist-row[aria-current="true"] { background: var(--accent-soft); }
+  .playlist-title { grid-column: 1; font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .playlist-artist { grid-column: 1; color: var(--text-muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .playlist-row[aria-current="true"] .playlist-marker { animation: none; }
+  body.is-playing .playlist-row[aria-current="true"] .playlist-marker { animation: marker-breath var(--motion-marker) ease-in-out infinite; }
+  .playlist-marker { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 10px; color: var(--accent); }
+  body.doc-hidden *, body.doc-hidden *::before, body.doc-hidden *::after {
+    animation-play-state: paused !important;
+  }
+
+  @keyframes marker-breath {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.45; }
+  }
+  .playlist-pagination { justify-content: space-between; }
+  .playlist-pagination span { font-size: 10px; color: var(--text-muted); }
+  .mine-card {
+    display: flex; gap: 10px; align-items: center; width: 100%;
+    padding: 8px 9px; text-align: left; border: 0;
+    border-bottom: 1px solid var(--border); border-radius: 5px;
+    background: transparent; cursor: pointer;
+  }
+  .mine-card:hover { background: var(--surface-hover); }
+  .mine-cover {
+    width: 44px; height: 44px; flex: 0 0 44px;
+    border-radius: 5px; object-fit: cover; background: var(--surface-raised);
+  }
+  .mine-card-text { display: grid; gap: 3px; min-width: 0; flex: 1; }
+  .mine-song { grid-template-columns: 36px minmax(0, 1fr) auto; }
+  .mine-song .playlist-cover {
+    grid-column: 1; grid-row: 1 / span 2; align-self: center;
+    width: 36px; height: 36px; border-radius: 4px; object-fit: cover;
+    background: var(--surface-raised);
+  }
+  .mine-song .playlist-title { grid-column: 2; }
+  .mine-song .playlist-artist { grid-column: 2; }
+  .mine-song .playlist-marker { grid-column: 3; grid-row: 1 / span 2; }
+
+  /* ── 视图浮现/隐去（iOS fade-through：淡入 + 轻缩放 + 上浮） ── */
+  @keyframes view-emerge {
+    from { opacity: 0; transform: scale(0.965) translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes view-leave {
+    to { opacity: 0; transform: scale(0.985) translateY(4px); }
+  }
+  .view-leaving {
+    animation: view-leave var(--motion-leave) ease-in forwards !important;
+    pointer-events: none;
+  }
+  .playlist-panel:not(.hidden) { animation: view-emerge var(--motion-panel) var(--motion-panel-ease); }
+  .settings-page:not(.hidden) { animation: view-emerge var(--motion-settings) var(--motion-panel-ease); }
+  .lyrics-section:not(.queue-open) .lyrics-area { animation: view-emerge var(--motion-panel) var(--motion-panel-ease); }
+
+  /* ── 省电模式：关闭持续运行的装饰动画（窗口透明度在重启时由 main.py 应用）── */
+  body.power-saving .status-dot.playing { animation: none; }
+  body.power-saving .playlist-row[aria-current="true"] .playlist-marker { animation: none; }
 </style>
 </head>
 <body>
@@ -1439,7 +1560,7 @@
 
   <header class="titlebar">
     <div class="brand">
-      <span class="brand-mark" aria-hidden="true">&#9835;</span>
+      <span class="brand-mark" aria-hidden="true"><img src="../../assets/icons/bizhi.png" alt=""></span>
       <div class="brand-copy">
         <h1>QQ 音乐歌词</h1>
         <div class="playback-status" aria-live="polite">
@@ -1476,6 +1597,18 @@
           <label class="setting-row" for="taskbarShowTitle">
             <span class="setting-label">显示歌曲名<small>为歌词预留一段标题空间</small></span>
             <span class="toggle"><input id="taskbarShowTitle" type="checkbox" data-theme-control="show_title"><span class="toggle-track"></span></span>
+          </label>
+        </div>
+
+        <div class="setting-section">
+          <div class="setting-section-title">界面</div>
+          <label class="setting-row" for="motionEnabled">
+            <span class="setting-label">动效<small>面板切换、歌词滚动等界面动画，关闭后立即生效</small></span>
+            <span class="toggle"><input id="motionEnabled" type="checkbox" checked><span class="toggle-track"></span></span>
+          </label>
+          <label class="setting-row" for="powerSaving">
+            <span class="setting-label">省电模式<small>关闭呼吸动画、窗口改为不透明，显著降低 CPU；透明度需重启挂件生效</small></span>
+            <span class="toggle"><input id="powerSaving" type="checkbox"><span class="toggle-track"></span></span>
           </label>
         </div>
 
@@ -1581,13 +1714,16 @@
         <input type="search" id="searchInput" placeholder="搜索歌曲或歌手" autocomplete="off" aria-label="搜索歌曲或歌手">
         <button class="search-button" id="searchButton" type="button" onclick="doSearch()">搜索</button>
       </div>
-      <div class="search-results hidden" id="searchResults" role="listbox"></div>
     </div>
   </section>
 
   <section class="lyrics-section">
     <div class="lyrics-heading">
-      <span>同步歌词</span>
+      <div class="content-tabs" role="tablist" aria-label="歌词与歌单">
+        <button class="content-tab" id="lyricsViewTab" type="button" role="tab" aria-selected="true" aria-controls="lyricsArea" onclick="setContentView('lyrics')">歌词</button>
+        <button class="content-tab" id="playlistViewTab" type="button" role="tab" aria-selected="false" aria-controls="playlistPanel" onclick="setContentView('playlist')">播放队列</button>
+        <button class="content-tab" id="mineViewTab" type="button" role="tab" aria-selected="false" aria-controls="minePanel" onclick="setContentView('mine')">我的歌单</button>
+      </div>
       <span class="lyrics-mode" id="lyricsMode">原词 / 翻译</span>
     </div>
     <div class="lyrics-area" id="lyricsArea" aria-live="polite">
@@ -1597,6 +1733,35 @@
         <p class="empty-copy">开始播放后，歌词和翻译会自动同步显示。</p>
       </div>
     </div>
+    <div class="playlist-panel hidden" id="playlistPanel" role="tabpanel" aria-labelledby="playlistViewTab">
+      <div class="playlist-toolbar">
+        <span class="playlist-count" id="playlistCount">客户端播放队列</span>
+        <button type="button" onclick="queuePanel.load('first')">回到开头</button>
+        <button type="button" onclick="queuePanel.load('refresh')">刷新</button>
+      </div>
+      <p class="playlist-message" id="playlistMessage" aria-live="polite">读取和点歌会短暂显示 QQ 音乐窗口。</p>
+      <div class="playlist-items" id="playlistItems" aria-label="QQ 音乐队列歌曲"></div>
+      <div class="playlist-pagination">
+        <button id="playlistPrevious" type="button" onclick="queuePanel.load('previous')">上一页</button>
+        <span>与客户端队列分页同步</span>
+        <button id="playlistNext" type="button" onclick="queuePanel.load('next')">下一页</button>
+      </div>
+    </div>
+    <div class="playlist-panel hidden" id="minePanel" role="tabpanel" aria-labelledby="mineViewTab">
+      <div class="playlist-toolbar">
+        <button type="button" id="mineBack" onclick="mineBack()" hidden>‹ 返回</button>
+        <span class="playlist-count" id="mineCount">账号歌单</span>
+        <button type="button" onclick="mineReload()">刷新</button>
+      </div>
+      <p class="playlist-message" id="mineMessage" aria-live="polite">来自 QQ 音乐账号的真实歌单，点击歌单浏览歌曲。</p>
+      <div class="playlist-items" id="mineItems" aria-label="我的歌单"></div>
+      <div class="playlist-pagination">
+        <button id="minePrevious" type="button" onclick="minePage(-1)">上一页</button>
+        <span id="mineHint"></span>
+        <button id="mineNext" type="button" onclick="minePage(1)">下一页</button>
+      </div>
+    </div>
+    <div class="search-results hidden" id="searchResults" role="listbox" aria-label="搜索结果"></div>
   </section>
 
   <footer class="footer">
@@ -1625,17 +1790,23 @@
   </footer>
 </main>
 
+<script src="js/song-list-panel.js"></script>
 <script>
   let lyrics = [];
   let currentIndex = -1;
   let userOffset = null;
   let lrcOffset = 0;
   let syncTimer = null;
+  let firstSyncDone = false;
+  let syncPoint = null;
   let settingsOpen = false;
   let taskbarTheme = null;
   let themeSaveTimer = null;
   let currentDurationMs = 0;
   let userSeeking = false;
+  let displayedMediaKey = "";
+  let activeView = "lyrics";
+  let viewSwitching = false;
 
   const themePresets = {
     clear: {
@@ -1696,26 +1867,90 @@
     });
   }
 
+  // 动效总开关：CSS 由 <html data-motion> 驱动；JS 动画（歌词滚动）用这里分支。
+  function motionOn() {
+    return document.documentElement.dataset.motion !== "off";
+  }
+
+  function applyMotion(enabled) {
+    document.documentElement.dataset.motion = enabled ? "on" : "off";
+    const toggle = document.getElementById("motionEnabled");
+    if (toggle) toggle.checked = Boolean(enabled);
+  }
+
+  async function loadUiMotion() {
+    try {
+      if (!await waitForApi()) return;
+      const result = await window.pywebview.api.get_ui_motion();
+      if (result && !result.error) applyMotion(result.enabled);
+    } catch (error) {
+      /* 默认保持开启 */
+    }
+  }
+
+  async function setUiMotion(enabled) {
+    applyMotion(enabled);   // 先切换视觉，再持久化
+    try {
+      if (!await waitForApi()) return;
+      await window.pywebview.api.set_ui_motion(enabled);
+    } catch (error) {
+      /* 保存失败不打断界面；下次启动回到上次成功保存的值 */
+    }
+  }
+
+  // 省电模式：立即关闭持续动画（body.power-saving）；窗口不透明在下次启动时生效。
+  function applyPowerSaving(enabled) {
+    document.body.classList.toggle("power-saving", Boolean(enabled));
+    const toggle = document.getElementById("powerSaving");
+    if (toggle) toggle.checked = Boolean(enabled);
+  }
+
+  async function loadPowerSaving() {
+    try {
+      if (!await waitForApi()) return;
+      const result = await window.pywebview.api.get_power_saving();
+      if (result && !result.error) applyPowerSaving(result.enabled);
+    } catch (error) {
+      /* 默认保持关闭 */
+    }
+  }
+
+  async function setPowerSaving(enabled) {
+    applyPowerSaving(enabled);   // 动画立即生效
+    try {
+      if (!await waitForApi()) return;
+      await window.pywebview.api.set_power_saving(enabled);
+    } catch (error) {
+      /* 保存失败不打断界面 */
+    }
+  }
+
   async function minimizeWin() {
     if (!await waitForApi()) return;
     window.pywebview.api.minimize();
   }
 
   async function toggleSettings() {
+    if (viewSwitching) return;
+    viewSwitching = true;
     settingsOpen = !settingsOpen;
     const widget = document.querySelector(".widget");
     const page = document.getElementById("settingsPage");
     const button = document.getElementById("settingsButton");
-    widget.classList.toggle("settings-open", settingsOpen);
-    page.classList.toggle("hidden", !settingsOpen);
     button.setAttribute("aria-pressed", String(settingsOpen));
     button.setAttribute("title", settingsOpen ? "关闭设置" : "打开设置");
     button.setAttribute("aria-label", settingsOpen ? "关闭设置" : "打开设置");
 
     if (settingsOpen) {
+      widget.classList.add("settings-open");
+      page.classList.remove("hidden");   // 浮现动画由 :not(.hidden) 触发
       setSettingsTab("general");
+      viewSwitching = false;
       await loadTaskbarTheme();
     } else {
+      await hideWithFade(page);
+      widget.classList.remove("settings-open");   // 歌词区随之浮现
+      viewSwitching = false;
       button.focus();
     }
   }
@@ -1909,6 +2144,7 @@
     const dot = document.getElementById("statusDot");
     const label = document.getElementById("statusLabel");
     dot.classList.remove("playing", "error");
+    document.body.classList.toggle("is-playing", state === "playing");
 
     if (state === "playing") {
       dot.classList.add("playing");
@@ -1925,7 +2161,8 @@
 
   async function tick() {
     try {
-      const data = await window.pywebview.api.auto_sync();
+      const data = await window.pywebview.api.auto_sync(false, !firstSyncDone);
+      firstSyncDone = true;
       if (!data || data.error) {
         setPlaybackState("idle");
         scheduleNext(2000);
@@ -1935,31 +2172,64 @@
       setPlaybackState(data.is_playing ? "playing" : (lyrics.length ? "paused" : "idle"));
       updatePlayPauseButton(Boolean(data.is_playing));
       showSongInfo(data.title, data.artist, data.album, data.cover_url);
+      const mediaKey = JSON.stringify([data.media_title || data.title, data.media_artist || data.artist]);
+      const nowTitle = data.media_title || data.title;
+      const nowArtist = data.media_artist || data.artist;
+      queuePanel.setNowPlaying(nowTitle, nowArtist, Boolean(data.is_playing));
+      mineSetNowPlaying(nowTitle, nowArtist, Boolean(data.is_playing));
 
       if (userOffset === null && typeof data.user_offset === "number") {
         userOffset = data.user_offset;
         updateOffsetLabel();
       }
 
-      if (data.song_changed && data.lyrics && data.lyrics.length) {
-        lyrics = data.lyrics;
+      if (mediaKey !== displayedMediaKey || data.song_changed) {
+        displayedMediaKey = mediaKey;
+        // The backend only carries the lyric array on song change; keep the
+        // currently rendered lyrics when it omits them.
+        if (Array.isArray(data.lyrics)) lyrics = data.lyrics;
         lrcOffset = data.lrc_offset || 0;
         currentIndex = -1;
         renderLyrics();
       }
 
-      if (lyrics.length && typeof data.position_ms === "number") {
+      if (typeof data.position_ms === "number") {
+        // Cache the sync point; a 200ms local timer interpolates the position
+        // between polls so the bridge only carries a light payload.
+        syncPoint = {
+          position_ms: data.position_ms,
+          duration_ms: data.duration_ms,
+          is_playing: Boolean(data.is_playing),
+          at: performance.now(),
+        };
         const effectiveMs = data.position_ms - lrcOffset - (userOffset || 0);
-        updateHighlight(effectiveMs);
+        if (lyrics.length) updateHighlight(effectiveMs);
         updateProgress(data.position_ms, data.duration_ms);
       }
 
-      scheduleNext(data.is_playing ? 200 : 1000);
+      scheduleNext(data.is_playing ? 1000 : 2000);
     } catch (error) {
       setPlaybackState("error");
       scheduleNext(2000);
     }
   }
+
+  // Local interpolation of the cached sync point: keeps the progress bar and
+  // lyric highlight smooth without pushing payloads over the bridge. Power
+  // saving mode slows the loop down (less DOM churn, less compositor work).
+  function renderLoopTick() {
+    if (!document.hidden && syncPoint && syncPoint.is_playing && !userSeeking) {
+      const pos = Math.min(
+        syncPoint.position_ms + (performance.now() - syncPoint.at),
+        syncPoint.duration_ms || Infinity,
+      );
+      if (lyrics.length) updateHighlight(pos - lrcOffset - (userOffset || 0));
+      updateProgress(pos, syncPoint.duration_ms);
+    }
+    const delay = document.body.classList.contains("power-saving") ? 500 : 200;
+    setTimeout(renderLoopTick, delay);
+  }
+  renderLoopTick();
 
   function scheduleNext(ms) {
     if (syncTimer) clearTimeout(syncTimer);
@@ -2035,6 +2305,10 @@
 
   function renderLyrics() {
     const area = document.getElementById("lyricsArea");
+    if (!lyrics.length) {
+      area.innerHTML = '<div class="empty-state"><p class="empty-title">当前歌曲暂无可用歌词</p><p class="empty-copy">播放控制和歌单仍可使用。</p></div>';
+      return;
+    }
     let html = '<div class="lyrics-spacer-top"></div>';
 
     for (let i = 0; i < lyrics.length; i++) {
@@ -2082,7 +2356,7 @@
         const maxTop = Math.max(0, area.scrollHeight - area.clientHeight);
         area.scrollTo({
           top: Math.max(0, Math.min(maxTop, targetTop)),
-          behavior: "smooth"
+          behavior: motionOn() ? "smooth" : "auto"
         });
       }
     }
@@ -2142,6 +2416,7 @@
     }
 
     setSearchLoading(true);
+    setContentView("search");   // 搜索结果作为独立视图浮现，不与歌单/歌词重合
     showSearchMessage("正在查找歌曲...");
 
     try {
@@ -2209,12 +2484,275 @@
         lrcOffset = data.lrc_offset || 0;
         currentIndex = -1;
         showSongInfo(data.title, data.artist, data.album, data.cover_url);
-        document.getElementById("searchResults").classList.add("hidden");
+        setContentView("lyrics");   // 回到歌词视图并浮现新歌词
         renderLyrics();
       }
     } catch (error) {
       showSearchMessage("歌词加载失败，请稍后重试。", true);
     }
+  }
+
+  const queuePanel = createSongListPanel({
+    root: "#playlistPanel",
+    count: "#playlistCount",
+    message: "#playlistMessage",
+    items: "#playlistItems",
+    previousBtn: "#playlistPrevious",
+    nextBtn: "#playlistNext",
+    loadApi: direction => window.pywebview.api.get_qq_playlist(direction),
+    playApi: (itemId, pageToken) => window.pywebview.api.play_qq_playlist_item(itemId, pageToken),
+    loadingText: "正在读取 QQ 音乐播放队列…",
+    successText: () => "点击歌曲在 QQ 音乐中播放；翻页时会显示客户端队列。",
+    emptyText: () => "QQ 音乐播放队列为空，请先在客户端播放歌曲。",
+    errorCountText: "尚未连接到客户端队列",
+    countText: data => "共 " + data.total + " 首 · 本页 " + data.items.length + " 首",
+    playLoadingText: "正在让 QQ 音乐切换歌曲…",
+    playSuccessText: result => "已切换到「" + result.title + "」。",
+    playErrorText: "切歌失败，请刷新后重试",
+    onPlayed: () => scheduleNext(100),
+  });
+
+  // ── 我的歌单：账号真实歌单（QQ 音乐公开 Web 接口）──
+
+  const MINE_PAGE_SIZE = 30;
+  let mineLevel = "playlists";
+  let mineLoading = false;
+  let mineLoaded = false;
+  let minePlaylist = null;      // {tid, name, song_num}
+  let mineBegin = 0;
+  let mineHasMore = false;
+  let mineNowPlaying = { title: "", artist: "", playing: false };
+
+  function mineMsg(text, error = false) {
+    const el = document.getElementById("mineMessage");
+    el.textContent = text;
+    el.classList.toggle("error", Boolean(error));
+  }
+
+  function mineSetBusy(value) {
+    mineLoading = value;
+    document.getElementById("minePanel").setAttribute("aria-busy", String(value));
+    document.querySelectorAll("#minePanel button").forEach(button => { button.disabled = value; });
+    if (!value) {
+      const songs = mineLevel === "songs";
+      document.getElementById("minePrevious").disabled = songs && mineBegin === 0;
+      document.getElementById("mineNext").disabled = songs && !mineHasMore;
+      document.getElementById("mineBack").hidden = !songs;
+    }
+  }
+
+  function mineCover(src, cls) {
+    const img = document.createElement("img");
+    img.className = cls;
+    img.loading = "lazy";
+    img.src = src || "";
+    img.onerror = () => img.remove();
+    return img;
+  }
+
+  function mineNormalize(text) {
+    return String(text || "").toLocaleLowerCase().replace(/\s/g, "");
+  }
+
+  function mineHighlight() {
+    if (mineLevel !== "songs") return;
+    document.querySelectorAll("#mineItems .mine-song").forEach(row => {
+      const current = mineNormalize(row.dataset.title) === mineNormalize(mineNowPlaying.title)
+        && mineNormalize(row.dataset.artist) === mineNormalize(mineNowPlaying.artist);
+      row.setAttribute("aria-current", String(current));
+      row.querySelector(".playlist-marker").textContent =
+        current ? (mineNowPlaying.playing ? "播放中" : "已暂停") : "播放";
+    });
+  }
+
+  function mineSetNowPlaying(title, artist, playing) {
+    mineNowPlaying = { title: title || "", artist: artist || "", playing: Boolean(playing) };
+    mineHighlight();
+  }
+
+  async function loadMinePlaylists() {
+    if (mineLoading) return;
+    mineSetBusy(true);
+    mineMsg("正在读取账号歌单…");
+    try {
+      if (!await waitForApi()) throw new Error("桌面接口不可用");
+      const data = await window.pywebview.api.get_qq_account_playlists();
+      if (!data || data.error) throw new Error(data?.error || "读取失败");
+      mineLevel = "playlists";
+      mineLoaded = true;
+      document.getElementById("mineBack").hidden = true;
+      const container = document.getElementById("mineItems");
+      container.replaceChildren();
+      document.getElementById("mineCount").textContent = "我的歌单 · " + data.playlists.length + " 个";
+      document.getElementById("mineHint").textContent = "来自账号的真实数据";
+      for (const pl of data.playlists) {
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "mine-card";
+        card.appendChild(mineCover(pl.cover_url, "mine-cover"));
+        const box = document.createElement("span");
+        box.className = "mine-card-text";
+        const name = document.createElement("span");
+        name.className = "playlist-title";
+        name.textContent = pl.name;
+        const count = document.createElement("span");
+        count.className = "playlist-artist";
+        count.textContent = pl.song_num + " 首";
+        box.append(name, count);
+        card.appendChild(box);
+        card.addEventListener("click", () => openMinePlaylist(pl));
+        container.appendChild(card);
+      }
+      mineMsg("点击歌单浏览真实歌曲数据（ songmid / 封面 / 专辑）。");
+    } catch (error) {
+      document.getElementById("mineItems").replaceChildren();
+      document.getElementById("mineCount").textContent = "尚未连接到账号歌单";
+      mineMsg(error.message || "读取失败", true);
+    } finally {
+      mineSetBusy(false);
+    }
+  }
+
+  async function openMinePlaylist(playlist, begin = 0) {
+    if (mineLoading) return;
+    mineSetBusy(true);
+    minePlaylist = playlist;
+    mineBegin = begin;
+    mineMsg("正在读取「" + playlist.name + "」的歌曲…");
+    try {
+      if (!await waitForApi()) throw new Error("桌面接口不可用");
+      const data = await window.pywebview.api.get_qq_account_playlist_songs(playlist.tid, mineBegin, MINE_PAGE_SIZE);
+      if (!data || data.error) throw new Error(data?.error || "读取失败");
+      mineLevel = "songs";
+      mineLoaded = true;
+      mineHasMore = data.has_more;
+      renderMineSongs(data.songs);
+      const range = (mineBegin + 1) + "-" + (mineBegin + data.songs.length);
+      mineMsg("「" + playlist.name + "」共 " + playlist.song_num + " 首 · 点击歌曲播放。");
+    } catch (error) {
+      mineMsg(error.message || "读取失败", true);
+    } finally {
+      mineSetBusy(false);
+    }
+  }
+
+  function renderMineSongs(songs) {
+    const container = document.getElementById("mineItems");
+    container.replaceChildren();
+    document.getElementById("mineCount").textContent =
+      minePlaylist.name + " · 共 " + minePlaylist.song_num + " 首";
+    document.getElementById("mineHint").textContent =
+      (mineBegin + 1) + "-" + (mineBegin + songs.length);
+    for (const song of songs) {
+      const row = document.createElement("button");
+      row.type = "button";
+      row.className = "playlist-row mine-song";
+      row.dataset.title = song.songname;
+      row.dataset.artist = song.singer;
+      row.setAttribute("aria-label", "播放 " + song.songname + "，" + song.singer);
+      row.appendChild(mineCover(song.cover_url, "playlist-cover"));
+      for (const [className, text] of [["playlist-title", song.songname], ["playlist-artist", song.singer], ["playlist-marker", "播放"]]) {
+        const span = document.createElement("span");
+        span.className = className;
+        span.textContent = text;
+        row.appendChild(span);
+      }
+      row.addEventListener("click", () => playMineSong(song));
+      container.appendChild(row);
+    }
+    mineHighlight();
+  }
+
+  async function playMineSong(song) {
+    if (mineLoading) return;
+    mineSetBusy(true);
+    mineMsg("正在让 QQ 音乐播放「" + song.songname + "」…");
+    try {
+      const result = await window.pywebview.api.play_qq_account_song(song.songname, song.singer);
+      if (!result || result.error || !result.verified) throw new Error(result?.error || "尚未确认播放");
+      mineMsg("已在 QQ 音乐播放「" + result.title + "」。");
+      scheduleNext(100);
+    } catch (error) {
+      mineMsg(error.message || "点歌失败，请刷新后重试", true);
+    } finally {
+      mineSetBusy(false);
+    }
+  }
+
+  function minePage(direction) {
+    if (!minePlaylist) return;
+    const begin = mineBegin + direction * MINE_PAGE_SIZE;
+    if (begin < 0) return;
+    openMinePlaylist(minePlaylist, begin);
+  }
+
+  function mineBack() {
+    minePlaylist = null;
+    loadMinePlaylists();
+  }
+
+  function mineReload() {
+    if (mineLevel === "songs" && minePlaylist) openMinePlaylist(minePlaylist, mineBegin);
+    else loadMinePlaylists();
+  }
+
+  // 视图切换：旧视图淡出（隐），新视图淡入 + 轻缩放浮现（现）；关动效时瞬时切换
+  function fadeOutView(el) {
+    if (!el || !motionOn()) return Promise.resolve();
+    return new Promise(resolve => {
+      el.classList.add("view-leaving");
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        el.classList.remove("view-leaving");
+        resolve();
+      };
+      el.addEventListener("animationend", finish, { once: true });
+      setTimeout(finish, 300);
+    });
+  }
+
+  function hideWithFade(el) {
+    if (!el) return Promise.resolve();
+    return fadeOutView(el).then(() => el.classList.add("hidden"));
+  }
+
+  async function setContentView(view) {
+    if (view === activeView || viewSwitching) return;
+    viewSwitching = true;
+    const section = document.querySelector(".lyrics-section");
+
+    // 先隐去当前视图
+    if (activeView === "lyrics") {
+      await fadeOutView(document.getElementById("lyricsArea"));
+      section.classList.add("queue-open");
+    } else if (activeView === "playlist") {
+      await hideWithFade(document.getElementById("playlistPanel"));
+    } else if (activeView === "mine") {
+      await hideWithFade(document.getElementById("minePanel"));
+    } else if (activeView === "search") {
+      await hideWithFade(document.getElementById("searchResults"));
+    }
+
+    // 再浮现目标视图（浮现动画由 :not(.hidden) / :not(.queue-open) 规则触发）
+    if (view === "lyrics") {
+      section.classList.remove("queue-open");
+    } else if (view === "playlist") {
+      document.getElementById("playlistPanel").classList.remove("hidden");
+    } else if (view === "mine") {
+      document.getElementById("minePanel").classList.remove("hidden");
+    } else if (view === "search") {
+      document.getElementById("searchResults").classList.remove("hidden");
+    }
+    document.getElementById("lyricsViewTab").setAttribute("aria-selected", String(view === "lyrics"));
+    document.getElementById("playlistViewTab").setAttribute("aria-selected", String(view === "playlist"));
+    document.getElementById("mineViewTab").setAttribute("aria-selected", String(view === "mine"));
+    activeView = view;
+    viewSwitching = false;
+
+    if (view === "playlist" && !queuePanel.hasData() && !queuePanel.isBusy()) queuePanel.load("refresh");
+    if (view === "mine" && !mineLoaded && !mineLoading) loadMinePlaylists();
   }
 
   function msToTime(ms) {
@@ -2231,10 +2769,14 @@
     return element.innerHTML;
   }
 
+  document.addEventListener("visibilitychange", () => {
+    document.body.classList.toggle("doc-hidden", document.hidden);
+  });
+
   document.getElementById("searchInput").addEventListener("keydown", event => {
     if (event.key === "Enter") doSearch();
-    if (event.key === "Escape") {
-      document.getElementById("searchResults").classList.add("hidden");
+    if (event.key === "Escape" && activeView === "search") {
+      setContentView("lyrics");
     }
   });
 
@@ -2281,7 +2823,15 @@
   document.querySelectorAll("[data-autostart-control]").forEach(control => {
     control.addEventListener("change", handleAutostartControl);
   });
+  document.getElementById("motionEnabled").addEventListener("change", event => {
+    setUiMotion(event.target.checked);
+  });
+  document.getElementById("powerSaving").addEventListener("change", event => {
+    setPowerSaving(event.target.checked);
+  });
 
+  loadUiMotion();
+  loadPowerSaving();
   startSync();
 </script>
 </body>

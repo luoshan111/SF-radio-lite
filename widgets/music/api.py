@@ -69,6 +69,9 @@ class MusicApi:
         self._bg_thread = None
         self._bg_running = False
         self._last_js_sync = 0.0
+        self._lyrics_missing_since = None
+        self._qq_queue = None
+        self._qq_page = None
         self._start_background_sync()
 
     # ── Search & Load ──
@@ -120,7 +123,132 @@ class MusicApi:
             "songmid": self._current_song,
         }
 
+    def get_qq_playlist(self, direction="refresh"):
+        """Read a page of QQ Music's own playback queue."""
+        if self._qq_queue is None:
+            from widgets.music.qq_queue import QQQueueBridge
+            self._qq_queue = QQQueueBridge()
+        return self._qq_queue.read_page(direction)
+
+    def play_qq_playlist_item(self, item_id, page_token):
+        if self._qq_queue is None:
+            return {"error": "请先刷新 QQ 音乐歌单。"}
+        result = self._qq_queue.play_item(item_id, page_token)
+        return self._verify_qq_play(result)
+
+    # ── QQ Music library page (我的歌单) ──
+
+    def _qq_page_bridge(self):
+        if self._qq_page is None:
+            from widgets.music.qq_playlists import QQPageBridge
+            self._qq_page = QQPageBridge()
+        return self._qq_page
+
+    def get_qq_page_songs(self, direction="refresh"):
+        """Read a page of the client's library page (boot page, 喜欢 in practice)."""
+        return self._qq_page_bridge().read_page(direction)
+
+    def get_qq_page_status(self):
+        return self._qq_page_bridge().status()
+
+    def restart_qq_client(self):
+        """Relaunch QQ Music with the accessibility flag (explicit user action)."""
+        return self._qq_page_bridge().restart_client()
+
+    def play_qq_page_item(self, item_id, page_token):
+        if self._qq_page is None:
+            return {"error": "请先刷新我的歌单。"}
+        result = self._qq_page.play_item(item_id, page_token)
+        return self._verify_qq_play(result)
+
+    # ── QQ Music account playlists (real web data) ──
+
+    def get_qq_account_playlists(self):
+        """The logged-in user's real playlists from QQ Music's web API."""
+        from widgets.music.qq_music import get_client_uin, get_user_playlists
+        uin = get_client_uin()
+        if not uin:
+            return {"error": "无法从客户端配置读取账号 ID，请确认 QQ 音乐已登录。"}
+        try:
+            playlists = get_user_playlists(uin)
+        except Exception as e:
+            return {"error": f"读取账号歌单失败：{e}"}
+        return {"uin": uin, "playlists": playlists}
+
+    def get_qq_account_playlist_songs(self, tid, begin=0, num=30):
+        """One page of a real playlist's songs (songmid, covers, album)."""
+        from widgets.music.qq_music import get_playlist_songs
+        try:
+            return get_playlist_songs(int(tid), int(begin), int(num))
+        except Exception as e:
+            return {"error": f"读取歌单歌曲失败：{e}"}
+
+    def play_qq_account_song(self, title, artist):
+        """Play a real song: click it on the readable client page when it is
+        visible, otherwise locate it in the client's play queue."""
+        if self._qq_page is not None:
+            result = self._qq_page.play_song_by_name(title, artist)
+            if result.get("ok"):
+                return self._verify_qq_play(result)
+        if self._qq_queue is None:
+            from widgets.music.qq_queue import QQQueueBridge
+            self._qq_queue = QQQueueBridge()
+        result = self._qq_queue.locate_and_play(title, artist)
+        return self._verify_qq_play(result)
+
+    def _verify_qq_play(self, result):
+        if result.get("error"):
+            return result
+        # A double-click is only a request. Confirm the real client song before
+        # reporting success or replacing the displayed lyrics.
+        normalize = lambda value: "".join(str(value or "").casefold().split())
+        deadline = time.monotonic() + 5
+        resumes = 0
+        while time.monotonic() < deadline:
+            status = _smtc_status()
+            if (status and normalize(status.get("title")) == normalize(result["title"])
+                    and normalize(status.get("artist")) == normalize(result["artist"])):
+                if status.get("is_playing"):
+                    return {**result, "verified": True}
+                # The second click can land on the row that just started and
+                # pause it again; ask the media session to start playback.
+                if resumes < 3:
+                    resumes += 1
+                    _control_playback("play")
+                time.sleep(0.5)
+            else:
+                time.sleep(0.25)
+        return {"error": "已发送点歌操作，但还未确认播放。请检查 QQ 音乐是否提示歌曲不可播放，再刷新歌单。"}
+
     # ── SMTC real-time playback ──
+
+    def snapshot(self):
+        """Thread-safe state snapshot for native UI surfaces.
+
+        Everything is an in-memory read (the SMTC status comes from the
+        event-driven watcher cache), so this is safe to call from any thread
+        at UI poll rate. The lyrics list is returned by reference — in-process
+        there is no serialization cost.
+        """
+        try:
+            status = _smtc_status() or {}
+        except Exception:
+            status = {}
+        return {
+            "title": self._current_title,
+            "artist": self._current_artist,
+            "album": self._current_album,
+            "cover_url": self._current_cover_url,
+            "lyrics": self._current_lyrics,
+            "lrc_offset": self._lrc_offset,
+            "user_offset": self._user_offset,
+            "media_title": status.get("title", ""),
+            "media_artist": status.get("artist", ""),
+            "position_ms": status.get("position_ms", 0),
+            "duration_ms": status.get("duration_ms", 0),
+            "is_playing": bool(status.get("is_playing")),
+            "songmid": self._current_song,
+        }
 
     def get_playback_status(self):
         """Query current playback via SMTC (shared with qq_music module)."""
@@ -129,7 +257,23 @@ class MusicApi:
             return {"error": "无法获取播放状态（无媒体会话或 SMTC 不可用）"}
         return status
 
-    def auto_sync(self, from_bg: bool = False):
+    def _search_and_load(self, keyword: str, status: dict) -> bool:
+        """Search the keyword and load the top match; False when nothing found."""
+        results = search_song(keyword, limit=1)
+        if not results:
+            return False
+        song = results[0]
+        self.load_lyrics(
+            song["songmid"], song["songname"], song["singer"],
+            song.get("albumname", ""), song.get("cover_url", ""),
+        )
+        status["title"] = song["songname"]
+        status["artist"] = song["singer"]
+        status["album"] = song.get("albumname", "")
+        status["cover_url"] = song.get("cover_url", "")
+        return True
+
+    def auto_sync(self, from_bg: bool = False, fresh: bool = False):
         """Sync playback state + lyrics.
 
         Called by the frontend (from_bg=False) or the background thread
@@ -139,7 +283,7 @@ class MusicApi:
         if not from_bg:
             self._last_js_sync = time.time()
         else:
-            # Frontend polls every 0.2-2s while visible; skip if it's fresh.
+            # Frontend polls every 1-2s while visible; skip if it's fresh.
             if self._last_js_sync and (time.time() - self._last_js_sync) < 3.0:
                 return None
 
@@ -149,25 +293,36 @@ class MusicApi:
 
         title = status.get("title", "")
         artist = status.get("artist", "")
+        status["media_title"], status["media_artist"] = title, artist
         keyword = f"{title} {artist}".strip()
 
         song_changed = False
         if keyword and keyword != self._last_keyword:
             self._last_keyword = keyword
             song_changed = True
-            results = search_song(keyword, limit=1)
-            if results:
-                song = results[0]
-                self.load_lyrics(
-                    song["songmid"], song["songname"], song["singer"],
-                    song.get("albumname", ""), song.get("cover_url", ""),
-                )
-                status["title"] = song["songname"]
-                status["artist"] = song["singer"]
-                status["album"] = song.get("albumname", "")
-                status["cover_url"] = song.get("cover_url", "")
+            self._current_lyrics = []
+            self._current_title, self._current_artist = title, artist
+            self._current_album = status.get("album", "")
+            self._current_cover_url = ""
+            self._lrc_offset = 0
+            if not self._search_and_load(keyword, status):
+                self._lyrics_missing_since = time.monotonic()
+            else:
+                self._lyrics_missing_since = None
+        elif keyword and self._lyrics_missing_since is not None and not self._current_lyrics:
+            # Search hits transient throttling windows; retry quietly so a
+            # song does not stay lyricless because one lookup landed badly.
+            if time.monotonic() - self._lyrics_missing_since >= 8:
+                self._lyrics_missing_since = time.monotonic()
+                if self._search_and_load(keyword, status):
+                    self._lyrics_missing_since = None
+                    song_changed = True
 
-        status["lyrics"] = self._current_lyrics
+        # The lyric array is the heaviest payload on this bridge; only send it
+        # when the song actually changed (or the frontend just booted and has
+        # nothing rendered yet).
+        send_lyrics = song_changed or fresh
+        status["lyrics"] = self._current_lyrics if send_lyrics else None
         status.setdefault("album", getattr(self, "_current_album", ""))
         status.setdefault("cover_url", getattr(self, "_current_cover_url", ""))
         status["song_changed"] = song_changed
@@ -221,6 +376,44 @@ class MusicApi:
 
     def reset_taskbar_theme(self):
         return self.set_taskbar_theme(TASKBAR_THEME_DEFAULTS)
+
+    def get_ui_motion(self):
+        """Master switch for interface animations (per-component tokens in CSS)."""
+        try:
+            from core.config import load_config
+            return {"enabled": bool(load_config().get("ui_motion", True))}
+        except Exception:
+            return {"enabled": True}
+
+    def set_ui_motion(self, enabled):
+        try:
+            from core.config import load_config, save_config
+            cfg = load_config()
+            cfg["ui_motion"] = bool(enabled)
+            save_config(cfg)
+        except Exception as e:
+            logger.debug(f"Failed to persist ui_motion: {e}")
+            return {"error": "动效设置保存失败"}
+        return {"ok": True, "enabled": bool(enabled)}
+
+    def get_power_saving(self):
+        # 省电模式：关闭持续动画 + 窗口不透明（透明度在下次启动时应用）。
+        try:
+            from core.config import load_config
+            return {"enabled": bool(load_config().get("power_saving", False))}
+        except Exception:
+            return {"enabled": False}
+
+    def set_power_saving(self, enabled):
+        try:
+            from core.config import load_config, save_config
+            cfg = load_config()
+            cfg["power_saving"] = bool(enabled)
+            save_config(cfg)
+        except Exception as e:
+            logger.debug(f"Failed to persist power_saving: {e}")
+            return {"error": "省电模式保存失败"}
+        return {"ok": True, "enabled": bool(enabled)}
 
     def get_autostart(self):
         """Return whether BIZHI starts with the current Windows user."""

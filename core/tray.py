@@ -73,10 +73,13 @@ class TrayManager:
     """Manages the system tray icon and menu."""
 
     def __init__(self, on_show_all=None,
-                 on_settings=None, on_quit=None, music_api=None):
+                 on_settings=None, on_quit=None, music_api=None,
+                 on_toggle_widget=None, widget_running=None):
         self._on_show_all = on_show_all
         self._on_settings = on_settings
         self._on_quit = on_quit
+        self._on_toggle_widget = on_toggle_widget
+        self._widget_running = widget_running
         self._icon = None
         self._music_api = music_api
         self._lyric_thread = None
@@ -87,11 +90,19 @@ class TrayManager:
 
     def _build_menu(self):
         """Build the tray context menu."""
-        return pystray.Menu(
-            pystray.MenuItem(
+        items = []
+        if self._on_toggle_widget:
+            items.append(pystray.MenuItem(
+                lambda item: ("关闭歌词挂件" if (self._widget_running and self._widget_running())
+                              else "打开歌词挂件"),
+                self._on_toggle_widget,
+            ))
+        else:
+            items.append(pystray.MenuItem(
                 "显示窗口",
                 self._on_show_all if self._on_show_all else lambda: None,
-            ),
+            ))
+        items.extend([
             pystray.MenuItem(
                 "开机自启",
                 self._toggle_autostart,
@@ -102,7 +113,8 @@ class TrayManager:
                 "退出",
                 self._on_quit if self._on_quit else lambda: None,
             ),
-        )
+        ])
+        return pystray.Menu(*items)
 
     def update_title(self, title: str):
         """Update the tray icon tooltip."""

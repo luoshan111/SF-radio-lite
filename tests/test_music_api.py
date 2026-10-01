@@ -25,6 +25,7 @@ def _make_api():
     api._last_keyword = ""
     api._cached_lyric_text = ""
     api._last_js_sync = 0.0
+    api._lyrics_missing_since = None
     api._taskbar_lyrics = None
     return api
 
@@ -40,7 +41,8 @@ class TestAutoSyncDedup(unittest.TestCase):
                     "duration_ms": 5000, "is_playing": True}
 
         api = _make_api()
-        with mock.patch.object(api_mod, "_smtc_status", side_effect=fake_status):
+        with mock.patch.object(api_mod, "_smtc_status", side_effect=fake_status), \
+             mock.patch.object(api_mod, "search_song", return_value=[]):
             r = api.auto_sync(from_bg=False)  # frontend poll
             self.assertIsNotNone(r)
             n1 = calls["n"]
@@ -149,6 +151,104 @@ class TestPlaybackControls(unittest.TestCase):
     def test_control_playback_seek_requires_position(self):
         api = _make_api()
         self.assertIn("error", api.control_playback("seek"))
+
+    def test_queue_click_waits_for_real_playback(self):
+        api = _make_api()
+        api._qq_queue = mock.Mock()
+        api._qq_queue.play_item.return_value = {"ok": True, "title": "Song", "artist": "A / B"}
+        with mock.patch.object(api_mod, "_smtc_status", side_effect=[
+            {"title": "Other", "artist": "A/B", "is_playing": True},
+            {"title": "Song", "artist": "A/B", "is_playing": False},
+            {"title": "Song", "artist": "A/B", "is_playing": True},
+        ]), mock.patch.object(api_mod, "_control_playback", return_value=True) as play, \
+             mock.patch.object(api_mod.time, "sleep"):
+            result = api.play_qq_playlist_item("item", "token")
+        self.assertTrue(result["verified"])
+        play.assert_called_once_with("play")
+
+    def test_queue_click_reports_error_when_song_never_confirmed(self):
+        api = _make_api()
+        api._qq_queue = mock.Mock()
+        api._qq_queue.play_item.return_value = {"ok": True, "title": "Song", "artist": "A/B"}
+        with mock.patch.object(api_mod, "_smtc_status", return_value=None), \
+             mock.patch.object(api_mod.time, "monotonic", side_effect=[0, 100]), \
+             mock.patch.object(api_mod.time, "sleep"):
+            result = api.play_qq_playlist_item("item", "token")
+        self.assertIn("error", result)
+
+    def test_song_change_clears_stale_lyrics_when_search_fails(self):
+        api = _make_api()
+        api._current_lyrics = [{"time_ms": 0, "text": "old song"}]
+        api._current_cover_url = "old-cover"
+        with mock.patch.object(api_mod, "_smtc_status", return_value={
+            "title": "New", "artist": "Singer", "is_playing": True,
+        }), mock.patch.object(api_mod, "search_song", return_value=None):
+            result = api.auto_sync()
+        self.assertEqual(result["lyrics"], [])
+        self.assertEqual(result["media_title"], "New")
+        self.assertEqual(result["cover_url"], "")
+
+    def test_ui_motion_roundtrip_and_default(self):
+        api = _make_api()
+        with mock.patch.object(cfg, "load_config", return_value={}), \
+             mock.patch.object(cfg, "save_config") as save:
+            self.assertTrue(api.get_ui_motion()["enabled"])   # 无配置默认开
+            api.set_ui_motion(False)
+        self.assertEqual(save.call_args[0][0]["ui_motion"], False)
+
+        with mock.patch.object(cfg, "load_config", return_value={"ui_motion": False}), \
+             mock.patch.object(cfg, "save_config") as save:
+            self.assertFalse(api.get_ui_motion()["enabled"])
+            self.assertTrue(api.set_ui_motion(True)["ok"])
+        self.assertEqual(save.call_args[0][0]["ui_motion"], True)
+
+    def test_failed_search_is_retried_on_later_polls(self):
+        api = _make_api()
+        song = {"songmid": "M1", "songname": "New", "singer": "Singer",
+                "albumname": "Album", "cover_url": "c", "albummid": "A"}
+        responses = iter([None, None, [song]])
+        with mock.patch.object(api_mod, "_smtc_status", return_value={
+            "title": "New", "artist": "Singer", "is_playing": True,
+            "position_ms": 1000, "duration_ms": 5000,
+        }), mock.patch.object(api_mod, "search_song",
+                              side_effect=lambda *a, **k: next(responses)), \
+             mock.patch.object(api_mod.time, "monotonic", side_effect=[0, 100, 200, 300, 400, 500]), \
+             mock.patch.object(api_mod, "get_lyrics", return_value={"lrc": "[00:01.00]hi", "trans": ""}):
+            first = api.auto_sync()
+            self.assertEqual(first["lyrics"], [])          # search failed
+            second = api.auto_sync()                        # before retry window
+            self.assertIsNone(second["lyrics"])            # omitted: song unchanged
+            third = api.auto_sync()                         # window passed: retry loads
+        self.assertEqual(len(third["lyrics"]), 1)
+        self.assertTrue(third["song_changed"])
+        self.assertEqual(third["title"], "New")
+
+    def test_power_saving_persisted(self):
+        api = _make_api()
+        saved = {}
+        with mock.patch.object(cfg, "load_config", return_value={}),              mock.patch.object(cfg, "save_config", side_effect=lambda c: saved.update(c)):
+            result = api.set_power_saving(True)
+            self.assertTrue(result["ok"])
+            self.assertTrue(saved.get("power_saving"))
+        with mock.patch.object(cfg, "load_config", return_value={"power_saving": True}):
+            self.assertTrue(api.get_power_saving()["enabled"])
+
+    def test_lyrics_only_sent_when_song_changed(self):
+        api = _make_api()
+        song = {"songmid": "M1", "songname": "New", "singer": "Singer",
+                "albumname": "Album", "cover_url": "c", "albummid": "A"}
+        with mock.patch.object(api_mod, "_smtc_status", return_value={
+            "title": "New", "artist": "Singer", "is_playing": True,
+            "position_ms": 1000, "duration_ms": 5000,
+        }), mock.patch.object(api_mod, "search_song", return_value=[song]), \
+             mock.patch.object(api_mod, "get_lyrics",
+                               return_value={"lrc": "[00:01.00]hi", "trans": ""}):
+            first = api.auto_sync()      # song change: full payload with lyrics
+            self.assertEqual(len(first["lyrics"]), 1)
+            second = api.auto_sync()     # same song: lyrics omitted
+            self.assertIsNone(second["lyrics"])
+            third = api.auto_sync(fresh=True)   # frontend boot: lyrics again
+            self.assertEqual(len(third["lyrics"]), 1)
 
 
 if __name__ == "__main__":

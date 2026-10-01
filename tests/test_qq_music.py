@@ -81,12 +81,14 @@ class TestSearchSong(unittest.TestCase):
             return self._payload
 
     def test_success(self):
-        payload = {"data": {"song": {"list": [{
+        payload = {"req_1": {"data": {"body": {"song": {"list": [{
             "mid": "M1", "name": "Song A",
             "singer": [{"name": "S1"}, {"name": "S2"}],
             "album": {"name": "Album"}, "interval": 210,
-        }]}}}
-        with mock.patch.object(q.requests, "get", return_value=self._FakeResp(payload)):
+        }]}}}}}
+        with mock.patch.object(q.requests, "post", return_value=self._FakeResp(payload)), \
+             mock.patch.object(q.requests, "get",
+                               side_effect=AssertionError("legacy path used first")):
             results = q.search_song("keyword")
         self.assertEqual(len(results), 1)
         self.assertEqual(results[0]["songmid"], "M1")
@@ -98,24 +100,83 @@ class TestSearchSong(unittest.TestCase):
         self.assertIn("T002R300x300M000ALBUM1", q.album_cover_url("ALBUM1", 300))
 
     def test_album_mid_maps_to_cover_url(self):
-        payload = {"data": {"song": {"list": [{
+        payload = {"req_1": {"data": {"body": {"song": {"list": [{
             "mid": "M1", "name": "Song A", "singer": [],
             "album": {"mid": "A1", "name": "Album"},
-        }]}}}
-        with mock.patch.object(q.requests, "get", return_value=self._FakeResp(payload)):
+        }]}}}}}
+        with mock.patch.object(q.requests, "post", return_value=self._FakeResp(payload)):
             result = q.search_song("keyword")[0]
         self.assertEqual(result["albummid"], "A1")
         self.assertIn("T002R500x500M000A1", result["cover_url"])
 
+    def test_legacy_soso_shape_still_parses(self):
+        payload = {"data": {"song": {"list": [{
+            "mid": "M1", "name": "Song A", "singer": [{"name": "S1"}],
+            "album": {"mid": "A1", "name": "Album"},
+        }]}}}
+        with mock.patch.object(q.requests, "post",
+                               side_effect=q.requests.ConnectionError("down")), \
+             mock.patch.object(q.requests, "get", return_value=self._FakeResp(payload)):
+            result = q.search_song("keyword")[0]
+        self.assertEqual(result["songmid"], "M1")
+        self.assertEqual(result["albummid"], "A1")
+
     def test_no_results_returns_empty_list(self):
-        payload = {"data": {"song": {"list": []}}}
-        with mock.patch.object(q.requests, "get", return_value=self._FakeResp(payload)):
+        empty = {"req_1": {"data": {"body": {"song": {"list": []}}}}}
+        legacy_empty = {"data": {"song": {"list": []}}}
+        with mock.patch.object(q.requests, "post", return_value=self._FakeResp(empty)), \
+             mock.patch.object(q.requests, "get", return_value=self._FakeResp(legacy_empty)):
             self.assertEqual(q.search_song("nothing"), [])
 
     def test_network_error_returns_none(self):
-        with mock.patch.object(q.requests, "get",
+        with mock.patch.object(q.requests, "post",
+                               side_effect=q.requests.ConnectionError("down")), \
+             mock.patch.object(q.requests, "get",
                                side_effect=q.requests.ConnectionError("down")):
             self.assertIsNone(q.search_song("keyword"))
+
+
+class TestAccountPlaylists(unittest.TestCase):
+
+    def test_get_client_uin_reads_ini(self):
+        data = "[Account]\nUin=3564017664\nOther=x\n"
+        with mock.patch.object(q, "CLIENT_CONFIG", "fake.ini"), \
+             mock.patch("builtins.open", mock.mock_open(read_data=data)):
+            self.assertEqual(q.get_client_uin(), "3564017664")
+
+    def test_get_client_uin_missing_file(self):
+        with mock.patch.object(q, "CLIENT_CONFIG", "missing.ini"), \
+             mock.patch("builtins.open", side_effect=OSError):
+            self.assertIsNone(q.get_client_uin())
+
+    def test_get_user_playlists_parses(self):
+        data = {"v_playlist": [{
+            "tid": 9632451793, "dirId": 7, "dirName": "qq", "songNum": 404,
+            "bigpicUrl": "http://y.gtimg.cn/x.jpg",
+        }]}
+        with mock.patch.object(q, "_musicu", return_value=data):
+            playlists = q.get_user_playlists("3564017664")
+        self.assertEqual(playlists[0]["tid"], 9632451793)
+        self.assertEqual(playlists[0]["name"], "qq")
+        self.assertTrue(playlists[0]["cover_url"].startswith("https://"))
+
+    def test_get_playlist_songs_parses(self):
+        data = {"hasmore": 1, "songlist": [{"songinfo": {
+            "mid": "M1", "name": "Song", "interval": 200,
+            "singer": [{"name": "A"}, {"name": "B"}],
+            "album": {"mid": "AL", "name": "Album"},
+        }}]}
+        with mock.patch.object(q, "_musicu", return_value=data) as musicu:
+            page = q.get_playlist_songs(9632451793, begin=30, num=30)
+        self.assertEqual(page["has_more"], True)
+        song = page["songs"][0]
+        self.assertEqual(song["songmid"], "M1")
+        self.assertEqual(song["singer"], "A/B")
+        self.assertEqual(song["cover_url"], q.album_cover_url("AL"))
+        musicu.assert_called_once_with(
+            "music.srfDissInfo.DissInfo", "CgiGetDiss",
+            {"disstid": 9632451793, "song_begin": 30, "song_num": 30,
+             "tag": False, "userinfo": False, "orderlist": False})
 
 
 class TestRunAsync(unittest.TestCase):

@@ -6,6 +6,7 @@ import copy
 import tkinter as tk
 import threading
 import logging
+from pathlib import Path
 
 from core.desktop import set_dpi_aware
 
@@ -32,6 +33,7 @@ TASKBAR_THEME_DEFAULTS = {
 }
 
 user32 = ctypes.windll.user32
+ICON_PATH = Path(__file__).resolve().parent.parent / "assets" / "icons" / "bizhi.ico"
 
 set_dpi_aware()
 
@@ -134,6 +136,11 @@ class TaskbarLyrics:
             self._root.withdraw()
             self._root.overrideredirect(True)
             self._root.attributes("-topmost", True)
+            if ICON_PATH.exists():
+                try:
+                    self._root.iconbitmap(str(ICON_PATH))
+                except tk.TclError:
+                    logger.warning("Unable to apply BIZHI icon to taskbar lyrics window")
             self._root.configure(bg=self._bg_color)
             try:
                 self._root.wm_attributes("-transparentcolor", self._bg_color)
